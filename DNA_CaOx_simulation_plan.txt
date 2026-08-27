@@ -75,3 +75,12 @@ Controls and caveats
   * Current waters are a first shell, not a periodic box; the MD
     group may resolvate in a 10 A box and add counterions properly
   * These coordinates are packed, not energy-minimized
+
+
+Future todos
+------------
+1. Keep the HTML viewer as the model-building / analysis front end
+   (preferred over GaussView for constructing systems with AI help).
+   Generalize it so later MD is not limited to this DNA–CaOx gel
+   pipeline — other force fields, periodic boxes, and run types
+   should load and run from the same interface.

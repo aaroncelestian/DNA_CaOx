@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 const MODELS = window.DNA_CAOX_MODELS || { templating_gel: window.DNA_CAOX_MODEL };
-const DEFAULT_GEOM = "templating_gel";
+const DEFAULT_GEOM = "templating_gel_thick";
 let MODEL =
   MODELS[DEFAULT_GEOM] ||
   MODELS.templating_gel ||
@@ -51,6 +51,9 @@ let trajFrame0Ca = null;
 let trajFrame0Oxalate = null;
 let trajAmp = 1;
 let trajMaxDisp = 0;
+let pendingTrajFrame = null;
+let sessionRestoring = false;
+let sessionSaveTimer = null;
 const caRest = { x: [...ca.x], y: [...ca.y], z: [...ca.z] };
 let oxalateLines = null;
 let oxalateRest = null;
@@ -63,7 +66,7 @@ try {
   renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: true,
-    alpha: false,
+    alpha: true,
     powerPreference: "high-performance",
     preserveDrawingBuffer: true,
   });
@@ -1271,7 +1274,214 @@ function trajStatusText(url) {
   return line;
 }
 
-function loadGeometry(name) {
+const SESSION_KEY = "dnaCaoxViewer.session.v1";
+const SESSION_CHECKBOX_IDS = [
+  "dna-ribbons",
+  "dna-pairs",
+  "dna-p",
+  "dna-seeds",
+  "oxalate",
+  "water",
+  "envelopes",
+  "ph-shell",
+  "ph-amorphous",
+  "ph-intermediate",
+  "ph-crystalline",
+  "ph-nucleation",
+  "nucleation-hotspots",
+  "radial-guides",
+  "shells",
+  "auto-rotate",
+  "g16-filter-visible",
+  "g16-hotspots-only",
+  "g16-include-dna",
+  "g16-include-oxalate",
+  "g16-include-water",
+];
+const SESSION_VALUE_IDS = [
+  "dmin",
+  "dmax",
+  "rmax",
+  "slab",
+  "env-opacity",
+  "g16-preset",
+  "g16-route",
+  "g16-charge",
+  "g16-mult",
+  "g16-mem",
+  "g16-nproc",
+  "g16-chk",
+  "g16-radius",
+  "g16-max-atoms",
+];
+
+function sessionStatus(msg) {
+  const el = $("session-status");
+  if (el) el.textContent = msg;
+}
+
+function readSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    return data && typeof data === "object" ? data : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function collectSession() {
+  const checks = {};
+  SESSION_CHECKBOX_IDS.forEach((id) => {
+    const el = $(id);
+    if (el) checks[id] = !!el.checked;
+  });
+  const values = {};
+  SESSION_VALUE_IDS.forEach((id) => {
+    const el = $(id);
+    if (el) values[id] = el.value;
+  });
+  const style = document.querySelector('input[name="style"]:checked');
+  const color = document.querySelector('input[name="color"]:checked');
+  return {
+    v: 1,
+    saved: new Date().toISOString(),
+    geometry: MODEL.geometry || DEFAULT_GEOM,
+    checks,
+    values,
+    style: style ? style.value : "spheres",
+    color: color ? color.value : "distance",
+    g16ChkEdited: $("g16-chk")?.dataset.userEdited === "1",
+    trajFrame: trajFrame || 0,
+    camera: {
+      pos: [camera.position.x, camera.position.y, camera.position.z],
+      target: [controls.target.x, controls.target.y, controls.target.z],
+      pan: [viewPan.x, viewPan.y, viewPan.z],
+    },
+  };
+}
+
+function writeSession() {
+  if (sessionRestoring) return;
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(collectSession()));
+  } catch (_) {
+    /* quota / private mode */
+  }
+}
+
+function scheduleSessionSave() {
+  if (sessionRestoring) return;
+  clearTimeout(sessionSaveTimer);
+  sessionSaveTimer = setTimeout(writeSession, 500);
+}
+
+function applySessionFields(data) {
+  if (!data) return;
+  if (data.checks) {
+    SESSION_CHECKBOX_IDS.forEach((id) => {
+      const el = $(id);
+      if (el && typeof data.checks[id] === "boolean") el.checked = data.checks[id];
+    });
+  }
+  const preset = data.values?.["g16-preset"];
+  if (preset && $("g16-preset")) {
+    $("g16-preset").value = preset;
+    applyG16Preset(preset);
+  }
+  if (data.values) {
+    SESSION_VALUE_IDS.forEach((id) => {
+      const el = $(id);
+      if (el && data.values[id] != null && data.values[id] !== "") el.value = data.values[id];
+    });
+  }
+  if (data.style) {
+    const el = document.querySelector(`input[name="style"][value="${data.style}"]`);
+    if (el) el.checked = true;
+  }
+  if (data.color) {
+    const el = document.querySelector(`input[name="color"][value="${data.color}"]`);
+    if (el) el.checked = true;
+  }
+  if (data.g16ChkEdited && $("g16-chk")) $("g16-chk").dataset.userEdited = "1";
+}
+
+function restoreCamera(cam) {
+  if (!cam?.pos) return;
+  camera.position.set(cam.pos[0], cam.pos[1], cam.pos[2]);
+  if (cam.target) controls.target.set(cam.target[0], cam.target[1], cam.target[2]);
+  if (cam.pan) viewPan.set(cam.pan[0], cam.pan[1], cam.pan[2]);
+  syncOrbitTarget();
+  controls.update();
+}
+
+function applySession(data, { downloaded } = {}) {
+  if (!data || data.v !== 1) {
+    sessionStatus("Could not load session (unknown format).");
+    return;
+  }
+  sessionRestoring = true;
+  pendingTrajFrame = data.trajFrame ?? 0;
+  const geom = data.geometry && MODELS[data.geometry] ? data.geometry : DEFAULT_GEOM;
+  loadGeometry(geom, { preserveUi: true });
+  applySessionFields(data);
+  restoreCamera(data.camera);
+  applyUi();
+  sessionRestoring = false;
+  writeSession();
+  const when = data.saved ? new Date(data.saved).toLocaleString() : "now";
+  sessionStatus(
+    downloaded ? `Loaded session file from ${when}.` : `Restored session from ${when}.`
+  );
+}
+
+function saveSessionNow({ download } = {}) {
+  const data = collectSession();
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(data));
+  } catch (_) {
+    sessionStatus("Could not write browser session (storage blocked).");
+    if (!download) return;
+  }
+  if (download) {
+    downloadBlob(
+      new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }),
+      `dna-caox-session-${data.geometry || "viewer"}.json`
+    );
+    sessionStatus(`Saved session file (${data.geometry}).`);
+    return;
+  }
+  sessionStatus(`Saved in this browser (${new Date(data.saved).toLocaleTimeString()}).`);
+}
+
+function resetSession() {
+  localStorage.removeItem(SESSION_KEY);
+  sessionStatus("Session cleared. Reloading defaults…");
+  window.location.reload();
+}
+
+function wireSession() {
+  $("session-save")?.addEventListener("click", () => saveSessionNow());
+  $("session-download")?.addEventListener("click", () => saveSessionNow({ download: true }));
+  $("session-reset")?.addEventListener("click", () => resetSession());
+  const fileEl = $("session-file");
+  $("session-load")?.addEventListener("click", () => fileEl?.click());
+  fileEl?.addEventListener("change", async () => {
+    const file = fileEl.files?.[0];
+    fileEl.value = "";
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      applySession(data, { downloaded: true });
+    } catch (err) {
+      sessionStatus(`Load failed: ${err.message || err}`);
+    }
+  });
+  controls.addEventListener("end", scheduleSessionSave);
+}
+
+function loadGeometry(name, opts = {}) {
   if (!MODELS[name]) return;
   stopTraj();
   MODEL = MODELS[name];
@@ -1311,7 +1521,9 @@ function loadGeometry(name) {
     if (el) el.classList.toggle("active", name === g);
   });
   syncLabels();
-  if (
+  if (opts.preserveUi) {
+    applyUi();
+  } else if (
     name === "templating_gel" ||
     name === "templating_gel_thick" ||
     name === "templating_gel_10shell" ||
@@ -1349,8 +1561,9 @@ async function loadTrajectory(url) {
     if (slider) {
       slider.min = 0;
       slider.max = String(maxF);
-      slider.value = 0;
+      slider.value = "0";
     }
+    if (section) section.hidden = false;
     const f0 = trajData.frames[0]?.ca;
     if (f0?.x?.length) {
       trajFrame0Ca = { x: [...f0.x], y: [...f0.y], z: [...f0.z] };
@@ -1360,9 +1573,11 @@ async function loadTrajectory(url) {
         trajAmp = Math.min(40, 1.2 / Math.max(trajMaxDisp, 1e-4));
       }
     }
-    if (section) section.hidden = false;
     if (status) status.textContent = trajStatusText(url);
-    applyTrajFrame(0);
+    const start =
+      pendingTrajFrame != null ? Math.max(0, Math.min(maxF, Number(pendingTrajFrame))) : 0;
+    pendingTrajFrame = null;
+    applyTrajFrame(start);
   } catch (err) {
     if (section) section.hidden = false;
     if (status) status.textContent = `Trajectory unavailable: ${err.message}`;
@@ -1562,6 +1777,7 @@ function applyUi() {
   $("visible-count").textContent = `Showing ${shown} of ${nCa} Ca  ·  ${shownPh[0]} / ${shownPh[1]} / ${shownPh[2]}${
     nWater ? `  ·  ${nWaterShown} / ${nWater} water O` : ""
   }`;
+  scheduleSessionSave();
 }
 
 function exportSlug() {
@@ -1574,36 +1790,43 @@ function exportSlug() {
 const G16_PRESETS = {
   association_sp: {
     route: "#p B3LYP/6-31G(d) EmpiricalDispersion=GD3BJ SCRF=(SMD,Solvent=Water)",
-    mem: "16GB",
-    nproc: 16,
+    mem: "128GB",
+    nproc: 28,
     charge: -1,
     mult: 1,
   },
   opt_freq: {
-    route: "#p Opt Freq B3LYP/6-31G(d) EmpiricalDispersion=GD3BJ SCRF=(SMD,Solvent=Water)",
-    mem: "16GB",
-    nproc: 16,
+    route: "#p Opt Freq B3LYP/6-31G(d) EmpiricalDispersion=GD3BJ Int=UltraFine SCRF=(SMD,Solvent=Water)",
+    mem: "128GB",
+    nproc: 28,
+    charge: -1,
+    mult: 1,
+  },
+  raman: {
+    route: "#p Opt Freq=Raman B3LYP/6-31G(d) EmpiricalDispersion=GD3BJ Int=UltraFine SCRF=(SMD,Solvent=Water)",
+    mem: "128GB",
+    nproc: 28,
     charge: -1,
     mult: 1,
   },
   screen_pm6: {
     route: "#p PM6 SCRF=(SMD,Solvent=Water)",
-    mem: "8GB",
-    nproc: 8,
+    mem: "128GB",
+    nproc: 28,
     charge: -1,
     mult: 1,
   },
   lanl2dz_ca: {
     route: "#p B3LYP/LANL2DZ EmpiricalDispersion=GD3BJ SCRF=(SMD,Solvent=Water)",
-    mem: "16GB",
-    nproc: 16,
+    mem: "128GB",
+    nproc: 28,
     charge: -1,
     mult: 1,
   },
   custom: {
     route: "",
-    mem: "16GB",
-    nproc: 16,
+    mem: "128GB",
+    nproc: 28,
     charge: -1,
     mult: 1,
   },
@@ -1810,6 +2033,39 @@ function estimateGaussianCharge(atoms) {
   return nP * -1 + nCa * 2 + nOxUnits * -2;
 }
 
+const GAUSSIAN_Z = {
+  H: 1,
+  C: 6,
+  N: 7,
+  O: 8,
+  F: 9,
+  Na: 11,
+  Mg: 12,
+  P: 15,
+  S: 16,
+  Cl: 17,
+  K: 19,
+  Ca: 20,
+};
+
+function totalAtomicNumber(atoms) {
+  return atoms.reduce((sum, a) => sum + (GAUSSIAN_Z[a.element] || 0), 0);
+}
+
+function fitChargeToMultiplicity(charge, ztot, mult) {
+  const wantOdd = (mult - 1) % 2 === 1;
+  const nelecOdd = (ztot - charge) % 2 !== 0;
+  if (nelecOdd === wantOdd) return charge;
+  return charge <= 0 ? charge - 1 : charge + 1;
+}
+
+function resolveGaussianCharge(atoms, requested, mult) {
+  const ztot = totalAtomicNumber(atoms);
+  const chem = estimateGaussianCharge(atoms);
+  const start = Number.isFinite(requested) ? requested : chem;
+  return fitChargeToMultiplicity(start, ztot, mult);
+}
+
 function gaussianElementSymbol(el) {
   const u = String(el || "").trim();
   if (u.length === 1) return `${u} `;
@@ -1834,7 +2090,6 @@ function buildGaussianComText(opts) {
     route.trim(),
     "",
     title || "DNA-CaOx cluster export for Gaussian 16",
-    "Helix-frame coordinates (Å). Verify charge and multiplicity before production.",
     "",
     `${charge} ${mult}`,
   ];
@@ -1845,6 +2100,7 @@ function buildGaussianComText(opts) {
         .padStart(12)} ${a.z.toFixed(6).padStart(12)}`
     );
   });
+  lines.push("");
   lines.push("");
   return lines.join("\n");
 }
@@ -1880,8 +2136,13 @@ function prepareGaussianJob(options = {}) {
     );
   }
 
-  const charge = Number($("g16-charge")?.value ?? 0);
+  const requested = Number($("g16-charge")?.value ?? NaN);
   const mult = Math.max(1, Number($("g16-mult")?.value ?? 1));
+  const charge = resolveGaussianCharge(atoms, requested, mult);
+  const chargeEl = $("g16-charge");
+  if (chargeEl && Number(chargeEl.value) !== charge) {
+    chargeEl.value = charge;
+  }
   const slug = exportSlug();
   const chk = forGaussView
     ? `${slug}_g16.chk`
@@ -1893,7 +2154,7 @@ function prepareGaussianJob(options = {}) {
     route,
     charge,
     mult,
-    title: `${MODEL.title || slug} — ${atoms.length} atoms`,
+    title: `${MODEL.title || slug} - ${atoms.length} atoms`,
     atoms,
   });
 
@@ -1975,10 +2236,12 @@ function updateG16JobSelect(jobs, selectedId) {
 function updateG16JobLog(job) {
   const logEl = $("g16-job-log");
   const cancelBtn = $("g16-cancel-job");
+  const liveBtn = $("g16-live-log");
   if (!logEl) return;
   if (!job) {
     logEl.textContent = "";
     if (cancelBtn) cancelBtn.disabled = true;
+    if (liveBtn) liveBtn.disabled = true;
     return;
   }
   const header = [
@@ -1986,14 +2249,17 @@ function updateG16JobLog(job) {
     job.route || "",
     job.lastEnergy != null ? `Last SCF energy: ${job.lastEnergy}` : "",
     job.error ? `Error: ${job.error}` : "",
-    "",
   ]
     .filter(Boolean)
     .join("\n");
-  logEl.textContent = header + (job.logTail || "(log empty — job starting…)");
+  const tail = (job.logTail || "").trim();
+  logEl.textContent = tail
+    ? `${header}\n\n${tail}`
+    : `${header}\n\n(log empty — job starting…)`;
   if (cancelBtn) {
     cancelBtn.disabled = !["queued", "running"].includes(job.state);
   }
+  if (liveBtn) liveBtn.disabled = false;
 }
 
 async function refreshG16Jobs(selectId) {
@@ -2069,22 +2335,39 @@ async function exportGaussianGaussView() {
   const status = $("export-status");
   const btn = $("export-g16-gjf");
   if (btn) btn.disabled = true;
-  status.textContent = "Building GaussView input…";
+  status.textContent = "Building GaussView input from the full model PDB…";
   try {
-    const { comText, atoms, charge, mult, slug } = prepareGaussianJob({ forGaussView: true });
+    const geom = MODEL.geometry || DEFAULT_GEOM;
+    const slug = exportSlug();
     const stem = `${slug}_g16`;
-    if (g16ServerAvailable) {
-      const data = await fetchG16Json("/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ com: comText, label: slug, format: "both" }),
-      });
-      const gjf = data.paths?.gjf || `${data.exportsDir}/${stem}.gjf`;
-      status.textContent = `GaussView files saved (${atoms.length} atoms, charge ${charge}, mult ${mult}): ${gjf} — open in GaussView (File → Open).`;
-    } else {
-      downloadBlob(new Blob([comText], { type: "text/plain" }), `${stem}.gjf`);
-      status.textContent = `Downloaded ${stem}.gjf (${atoms.length} atoms). Open in GaussView; chk is ${slug}_g16.chk in the same folder.`;
+    if (!g16ServerAvailable) {
+      throw new Error(
+        "Viewer server required for full-model GaussView export. Run python3 scripts/viewer_server.py"
+      );
     }
+    const data = await fetchG16Json("/export", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source: "pdb",
+        geometry: geom,
+        label: slug,
+        format: "both",
+        route: $("g16-route")?.value?.trim() || "",
+        mem: ($("g16-mem")?.value || "128GB").trim(),
+        nproc: Math.max(1, Number($("g16-nproc")?.value || 28)),
+        mult: Math.max(1, Number($("g16-mult")?.value || 1)),
+        includeDna: $("g16-include-dna")?.checked ?? true,
+        includeOxalate: $("g16-include-oxalate")?.checked ?? true,
+        includeWater: $("g16-include-water")?.checked ?? true,
+      }),
+    });
+    const gjf = data.paths?.gjf || `${data.exportsDir}/${stem}.gjf`;
+    const pdb = data.paths?.pdb;
+    status.textContent =
+      `GaussView full model (${data.nAtoms} atoms, ${geom}, charge ${data.charge}): ${gjf}` +
+      (pdb ? ` and ${pdb}` : "") +
+      " — open the .pdb in GaussView for bonds, or the .gjf to edit/submit.";
   } catch (err) {
     status.textContent = `GaussView export failed: ${err.message || err}`;
   } finally {
@@ -2108,11 +2391,15 @@ async function submitGaussian16() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ com: comText, label: exportSlug() }),
     });
-    status.textContent = `Submitted job ${data.jobId} (${atoms.length} atoms, charge ${charge}, mult ${mult}).`;
+    status.textContent = `Submitted job ${data.jobId} (${atoms.length} atoms, charge ${data.charge ?? charge}, mult ${mult}).`;
+    if (data.chargeAdjustedFrom != null) {
+      status.textContent += ` Charge ${data.chargeAdjustedFrom} → ${data.charge} so the electron count matches multiplicity ${mult}.`;
+    }
     await refreshG16Jobs(data.jobId);
     if (!g16PollTimer) {
       g16PollTimer = setInterval(() => refreshG16Jobs(), 3000);
     }
+    openG16LiveLog(data.jobId);
   } catch (err) {
     status.textContent = `G16 submit failed: ${err.message || err}`;
   } finally {
@@ -2138,7 +2425,94 @@ async function cancelG16Job() {
   }
 }
 
-function captureFrame(scale, mime = "image/png", quality) {
+let g16LiveLogTimer = null;
+let g16LiveLogJobId = null;
+
+function selectedG16JobId() {
+  return $("g16-job-select")?.value || g16LiveLogJobId || "";
+}
+
+function closeG16LiveLog() {
+  if (g16LiveLogTimer) {
+    clearInterval(g16LiveLogTimer);
+    g16LiveLogTimer = null;
+  }
+  g16LiveLogJobId = null;
+  const overlay = $("g16-log-overlay");
+  if (overlay) overlay.hidden = true;
+}
+
+function renderG16LiveLog(job) {
+  const full = $("g16-log-full");
+  const meta = $("g16-log-meta");
+  const poll = $("g16-log-poll-status");
+  const follow = $("g16-log-follow");
+  if (!full) return;
+  const running = ["queued", "running"].includes(job.state);
+  const bytes = job.logBytes != null ? ` · ${job.logBytes} bytes` : "";
+  if (meta) {
+    meta.textContent = `${job.label || job.id} [${job.state || "?"}]${
+      job.lastEnergy != null ? `  E=${Number(job.lastEnergy).toFixed(6)}` : ""
+    }${bytes}`;
+  }
+  const header = [
+    job.route || "",
+    job.error ? `Error: ${job.error}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const tail = (job.logTail || "").trimEnd();
+  const body = tail
+    ? `${header ? `${header}\n\n` : ""}${tail}`
+    : `${header ? `${header}\n\n` : ""}(log empty — waiting for Gaussian to write output…)`;
+  const atBottom =
+    full.scrollHeight - full.scrollTop - full.clientHeight < 40;
+  full.textContent = body;
+  if (follow?.checked || atBottom) {
+    full.scrollTop = full.scrollHeight;
+  }
+  if (poll) {
+    const stamp = new Date().toLocaleTimeString();
+    poll.textContent = running
+      ? `Live — refreshing every 1 s (${stamp})`
+      : `Job ${job.state || "ended"} — last refresh ${stamp}`;
+  }
+}
+
+async function refreshG16LiveLog() {
+  const id = g16LiveLogJobId || selectedG16JobId();
+  if (!id) return;
+  try {
+    const job = await fetchG16Json(`/jobs/${id}?tail=120000`);
+    g16LiveLogJobId = job.id || id;
+    renderG16LiveLog(job);
+    updateG16JobLog(job);
+    if (!["queued", "running"].includes(job.state) && g16LiveLogTimer) {
+      clearInterval(g16LiveLogTimer);
+      g16LiveLogTimer = setInterval(() => refreshG16LiveLog(), 4000);
+    }
+  } catch (err) {
+    const poll = $("g16-log-poll-status");
+    if (poll) poll.textContent = `Could not load log: ${err.message || err}`;
+  }
+}
+
+function openG16LiveLog(jobId) {
+  const id = jobId || selectedG16JobId();
+  if (!id) return;
+  g16LiveLogJobId = id;
+  const overlay = $("g16-log-overlay");
+  const full = $("g16-log-full");
+  const poll = $("g16-log-poll-status");
+  if (full) full.textContent = "Loading log…";
+  if (poll) poll.textContent = "Connecting…";
+  if (overlay) overlay.hidden = false;
+  if (g16LiveLogTimer) clearInterval(g16LiveLogTimer);
+  g16LiveLogTimer = setInterval(() => refreshG16LiveLog(), 1000);
+  refreshG16LiveLog();
+}
+
+function captureFrame(scale, mime = "image/png", quality, { transparent = false } = {}) {
   const cssW = canvas.clientWidth;
   const cssH = canvas.clientHeight;
   const outW = Math.max(1, Math.round(cssW * scale));
@@ -2146,28 +2520,39 @@ function captureFrame(scale, mime = "image/png", quality) {
   const prevSize = new THREE.Vector2();
   renderer.getSize(prevSize);
   const prevPR = renderer.getPixelRatio();
+  const prevBackground = scene.background;
+  const prevClearColor = renderer.getClearColor(new THREE.Color());
+  const prevClearAlpha = renderer.getClearAlpha();
 
-  camera.position.sub(viewPan);
-  syncOrbitTarget();
-  controls.update();
-  camera.position.add(viewPan);
-  renderer.setPixelRatio(1);
-  renderer.setSize(outW, outH, false);
-  camera.aspect = outW / outH;
-  camera.updateProjectionMatrix();
-  renderer.render(scene, camera);
-
-  const dataUrl = renderer.domElement.toDataURL(mime, quality);
-
-  renderer.setPixelRatio(prevPR);
-  renderer.setSize(prevSize.x, prevSize.y, false);
-  camera.aspect = cssW / Math.max(cssH, 1);
-  camera.updateProjectionMatrix();
-  camera.position.sub(viewPan);
-  syncOrbitTarget();
-  controls.update();
-  camera.position.add(viewPan);
-  renderer.render(scene, camera);
+  let dataUrl;
+  try {
+    camera.position.sub(viewPan);
+    syncOrbitTarget();
+    controls.update();
+    camera.position.add(viewPan);
+    renderer.setPixelRatio(1);
+    renderer.setSize(outW, outH, false);
+    camera.aspect = outW / outH;
+    camera.updateProjectionMatrix();
+    if (transparent) {
+      scene.background = null;
+      renderer.setClearColor(0x000000, 0);
+    }
+    renderer.render(scene, camera);
+    dataUrl = renderer.domElement.toDataURL(mime, quality);
+  } finally {
+    scene.background = prevBackground;
+    renderer.setClearColor(prevClearColor, prevClearAlpha);
+    renderer.setPixelRatio(prevPR);
+    renderer.setSize(prevSize.x, prevSize.y, false);
+    camera.aspect = cssW / Math.max(cssH, 1);
+    camera.updateProjectionMatrix();
+    camera.position.sub(viewPan);
+    syncOrbitTarget();
+    controls.update();
+    camera.position.add(viewPan);
+    renderer.render(scene, camera);
+  }
 
   return { dataUrl, width: outW, height: outH };
 }
@@ -2247,7 +2632,9 @@ async function exportPNG(scale) {
   });
   status.textContent = `Rendering ${scale}× PNG…`;
   try {
-    const { dataUrl, width, height } = captureFrame(scale, "image/png");
+    const { dataUrl, width, height } = captureFrame(scale, "image/png", undefined, {
+      transparent: true,
+    });
     const bytes = dataUrlToBytes(dataUrl);
     downloadBlob(new Blob([bytes], { type: "image/png" }), `${exportSlug()}_${scale}x.png`);
     status.textContent = `Saved ${width}×${height} PNG.`;
@@ -2383,12 +2770,13 @@ function ui() {
         maxAtoms: Number($("g16-max-atoms")?.value || 0),
         center: helixCenter.clone(),
       });
-      const q = estimateGaussianCharge(atoms);
+      const q = resolveGaussianCharge(atoms, estimateGaussianCharge(atoms), 1);
       const chargeEl = $("g16-charge");
       if (chargeEl) chargeEl.value = q;
       const hint = $("g16-hint");
       if (hint) {
-        hint.textContent = `Estimated charge ${q} from ${atoms.length} atoms (P −1, Ca +2, oxalate −2 per C₂O₄). Verify before running.`;
+        const z = totalAtomicNumber(atoms);
+        hint.textContent = `Estimated charge ${q} from ${atoms.length} atoms (P −1, Ca +2, oxalate −2 per C₂O₄; adjusted for ${z - q} electrons / singlet). Verify before running.`;
       }
     });
   }
@@ -2416,7 +2804,17 @@ function ui() {
   }
   const g16Cancel = $("g16-cancel-job");
   if (g16Cancel) g16Cancel.addEventListener("click", () => cancelG16Job());
+  const g16Live = $("g16-live-log");
+  if (g16Live) g16Live.addEventListener("click", () => openG16LiveLog());
+  const g16LogClose = $("g16-log-close");
+  if (g16LogClose) g16LogClose.addEventListener("click", () => closeG16LiveLog());
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !$("g16-log-overlay")?.hidden) {
+      closeG16LiveLog();
+    }
+  });
   checkG16Server();
+  wireSession();
   applyUi();
 }
 
@@ -2447,6 +2845,10 @@ if (MODELS[DEFAULT_GEOM]) {
   setView("side");
 }
 ui();
+const savedSession = readSession();
+if (savedSession?.geometry && MODELS[savedSession.geometry]) {
+  applySession(savedSession);
+}
 resize();
 window.addEventListener("resize", resize);
 

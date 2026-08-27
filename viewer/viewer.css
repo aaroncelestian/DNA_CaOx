@@ -120,6 +120,78 @@ html, body {
   word-break: break-word;
 }
 
+#g16-log-overlay {
+  position: absolute;
+  inset: 12px 12px 12px 304px;
+  z-index: 20;
+  display: flex;
+  min-width: 0;
+}
+
+#g16-log-overlay[hidden] {
+  display: none;
+}
+
+.g16-log-modal {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  background: rgba(10, 12, 16, 0.96);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.g16-log-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.g16-log-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 620;
+}
+
+.g16-log-header .sub {
+  margin: 2px 0 0;
+}
+
+.g16-log-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.g16-log-follow {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.g16-log-full {
+  flex: 1;
+  margin: 0;
+  overflow: auto;
+  padding: 12px 14px;
+  font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #d5dbe3;
+  background: #07080a;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.g16-log-status {
+  margin: 0;
+  padding: 6px 14px 8px;
+  border-top: 1px solid var(--line);
+}
+
 #unroll {
   display: block;
   width: 100%;

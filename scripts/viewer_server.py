@@ -25,12 +25,20 @@ import uuid
 from datetime import datetime, timezone
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 JOBS_DIR = ROOT / "viewer" / "g16_jobs"
 EXPORTS_DIR = ROOT / "viewer" / "gaussview_exports"
+WORK_ROOT = Path("/tmp/dna_caox_g16")
 LOG_TAIL_BYTES = 12000
+GEOM_PDBS = {
+    "templating_gel": ROOT / "DNA_CaOx_templating_gel_omm.pdb",
+    "templating_gel_thick": ROOT / "DNA_CaOx_templating_gel_thick_omm.pdb",
+    "templating_gel_10shell": ROOT / "DNA_CaOx_templating_gel_10shell_omm.pdb",
+    "templating_gel_15shell": ROOT / "DNA_CaOx_templating_gel_15shell_omm.pdb",
+    "templating_nodna": ROOT / "DNA_CaOx_templating_gel_nodna_omm.pdb",
+}
 DEFAULT_G16_PATHS = (
     Path("/Applications/g16/g16"),
     Path("/Applications/Gaussian/G16/g16"),
@@ -82,6 +90,108 @@ def current_g16_cmd() -> str | None:
     return G16_CMD
 
 
+def normalize_gaussian_com(text: str) -> str:
+    """Strip wrapping whitespace, then end with a blank line (required by l101)."""
+    text = (text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not text:
+        return ""
+    return text + "\n\n"
+
+
+ATOMIC_Z = {
+    "H": 1,
+    "C": 6,
+    "N": 7,
+    "O": 8,
+    "F": 9,
+    "Na": 11,
+    "Mg": 12,
+    "P": 15,
+    "S": 16,
+    "Cl": 17,
+    "K": 19,
+    "Ca": 20,
+}
+
+
+def fit_charge_to_multiplicity(charge: int, ztot: int, mult: int) -> int:
+    """Singlet/triplet need even electron counts; doublets need odd."""
+    want_odd = (int(mult) - 1) % 2 == 1
+    nelec_odd = ((int(ztot) - int(charge)) % 2) == 1
+    if nelec_odd == want_odd:
+        return int(charge)
+    return int(charge) - 1 if int(charge) <= 0 else int(charge) + 1
+
+
+def ensure_com_electron_parity(com: str) -> tuple[str, int | None, int | None]:
+    """Nudge charge by 1 if multiplicity and electron count are incompatible.
+
+    Returns (com, old_charge, new_charge). new_charge is None if unchanged.
+    """
+    lines = com.splitlines()
+    atom_re = re.compile(r"^([A-Za-z]{1,2})\s+")
+    first_atom = None
+    ztot = 0
+    for i, line in enumerate(lines):
+        s = line.strip()
+        m = atom_re.match(s)
+        if not m:
+            continue
+        parts = s.split()
+        if len(parts) < 4:
+            continue
+        try:
+            float(parts[1])
+            float(parts[2])
+            float(parts[3])
+        except ValueError:
+            continue
+        el_raw = m.group(1)
+        el = el_raw[0].upper() + (el_raw[1:].lower() if len(el_raw) > 1 else "")
+        z = ATOMIC_Z.get(el)
+        if z is None:
+            continue
+        if first_atom is None:
+            first_atom = i
+        ztot += z
+    if first_atom is None:
+        return com, None, None
+    charge_idx = None
+    charge = mult = None
+    for j in range(first_atom - 1, -1, -1):
+        parts = lines[j].split()
+        if len(parts) != 2:
+            continue
+        try:
+            charge, mult = int(parts[0]), int(parts[1])
+        except ValueError:
+            continue
+        charge_idx = j
+        break
+    if charge_idx is None or charge is None or mult is None:
+        return com, None, None
+    new_q = fit_charge_to_multiplicity(charge, ztot, mult)
+    if new_q == charge:
+        return com, charge, None
+    lines[charge_idx] = f"{new_q} {mult}"
+    return normalize_gaussian_com("\n".join(lines)), charge, new_q
+
+
+def gaussian_env(g16_cmd: str, scratch: Path) -> dict[str, str]:
+    env = os.environ.copy()
+    g16_dir = Path(g16_cmd).resolve().parent
+    g16root = g16_dir.parent
+    env["g16root"] = str(g16root)
+    env["GAUSS_EXEDIR"] = f"{g16_dir / 'bsd'}:{g16_dir}"
+    env["GAUSS_LEXEDIR"] = str(g16_dir / "linda-exe")
+    env["GAUSS_ARCHDIR"] = str(g16_dir / "arch")
+    env["GAUSS_BSDDIR"] = str(g16_dir / "bsd")
+    env["G16BASIS"] = str(g16_dir / "basis")
+    env["GAUSS_SCRDIR"] = str(scratch)
+    env["PATH"] = f"{g16_dir / 'bsd'}:{g16_dir}:{env.get('PATH', '')}"
+    return env
+
+
 def job_dir(job_id: str) -> Path:
     return JOBS_DIR / job_id
 
@@ -130,7 +240,7 @@ def tail_log(log_path: Path, nbytes: int = LOG_TAIL_BYTES) -> str:
         size = log_path.stat().st_size
         with log_path.open("rb") as fh:
             if size > nbytes:
-                fh.seek(-nbytes)
+                fh.seek(-nbytes, os.SEEK_END)
             data = fh.read()
         return data.decode("utf-8", errors="replace")
     except OSError:
@@ -171,26 +281,30 @@ def run_job(job_id: str) -> None:
         write_status(job_id, st)
         return
 
-    env = os.environ.copy()
-    scratch = jd / "scratch"
-    scratch.mkdir(exist_ok=True)
-    env.setdefault("GAUSS_SCRDIR", str(scratch))
-    g16root = Path(g16_cmd).resolve().parent
-    env.setdefault("g16root", str(g16root))
-    env.setdefault("GAUSS_EXEDIR", str(g16root))
+    # iCloud/repo paths contain spaces; Gaussian l101 often dies with
+    # "End of file in ZSymb" if scratch or cwd has spaces.
+    work = WORK_ROOT / job_id
+    scratch = work / "scratch"
+    scratch.mkdir(parents=True, exist_ok=True)
+    work_com = work / f"{job_id}.com"
+    shutil.copy2(com_path, work_com)
+    env = gaussian_env(g16_cmd, scratch)
 
     try:
-        with log_path.open("w", encoding="utf-8") as logfh:
+        with work_com.open("rb") as inf, log_path.open("wb", buffering=0) as logfh:
             proc = subprocess.Popen(
-                [g16_cmd, str(com_path)],
-                cwd=jd,
+                [g16_cmd],
+                cwd=str(work),
+                stdin=inf,
                 stdout=logfh,
                 stderr=subprocess.STDOUT,
                 env=env,
             )
-        pid_path.write_text(str(proc.pid), encoding="utf-8")
-        exit_code = proc.wait()
+            pid_path.write_text(str(proc.pid), encoding="utf-8")
+            exit_code = proc.wait()
         pid_path.unlink(missing_ok=True)
+        for extra in work.glob("*.chk"):
+            shutil.copy2(extra, jd / extra.name)
     except Exception as exc:
         st = read_status(job_id) or {}
         st["state"] = "failed"
@@ -217,7 +331,7 @@ def safe_export_stem(label: str) -> str:
 def write_gaussview_export(com: str, label: str, formats: list[str]) -> dict[str, str]:
     EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
     stem = f"{safe_export_stem(label)}_g16"
-    text = com + ("\n" if not com.endswith("\n") else "")
+    text = normalize_gaussian_com(com)
     paths: dict[str, str] = {}
     for fmt in formats:
         if fmt not in ("gjf", "com"):
@@ -226,6 +340,115 @@ def write_gaussview_export(com: str, label: str, formats: list[str]) -> dict[str
         path.write_text(text, encoding="utf-8")
         paths[fmt] = str(path.relative_to(ROOT))
     return paths
+
+
+def pdb_element(line: str) -> str:
+    el = line[76:78].strip() if len(line) >= 78 else ""
+    if not el:
+        name = line[12:16].strip()
+        el = "Ca" if name.upper().startswith("CA") else name[:1]
+    if el.lower() == "ca":
+        return "Ca"
+    if len(el) == 1:
+        return el.upper()
+    return el[0].upper() + el[1:].lower()
+
+
+def read_pdb_export_atoms(
+    pdb_path: Path,
+    *,
+    include_dna: bool,
+    include_mineral: bool,
+    include_water: bool,
+) -> tuple[list[tuple[str, float, float, float]], list[str]]:
+    """Return Cartesian atoms and the original PDB records kept."""
+    atoms: list[tuple[str, float, float, float]] = []
+    records: list[str] = []
+    for line in pdb_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if not line.startswith(("ATOM", "HETATM")):
+            continue
+        res = line[17:20].strip()
+        if res == "NUC" and not include_dna:
+            continue
+        if res == "WHW" and not include_mineral:
+            continue
+        if res in ("HOH", "WAT", "SOL") and not include_water:
+            continue
+        try:
+            x = float(line[30:38])
+            y = float(line[38:46])
+            z = float(line[46:54])
+        except ValueError:
+            continue
+        atoms.append((pdb_element(line), x, y, z))
+        records.append(line[:80].rstrip())
+    return atoms, records
+
+
+def estimate_pdb_charge(pdb_path: Path, records: list[str]) -> int:
+    n_p = n_ca = n_ox_c = 0
+    for line in records:
+        el = pdb_element(line)
+        res = line[17:20].strip()
+        if el == "P":
+            n_p += 1
+        elif el == "Ca":
+            n_ca += 1
+        elif el == "C" and res == "WHW":
+            n_ox_c += 1
+    return n_p * -1 + n_ca * 2 + (n_ox_c // 2) * -2
+
+
+def write_gaussview_from_pdb(
+    geometry: str,
+    *,
+    label: str,
+    route: str,
+    mem: str,
+    nproc: int,
+    charge: int | None,
+    mult: int,
+    include_dna: bool,
+    include_mineral: bool,
+    include_water: bool,
+    formats: list[str],
+) -> dict:
+    pdb_path = GEOM_PDBS.get(geometry)
+    if not pdb_path or not pdb_path.exists():
+        raise FileNotFoundError(f"No source PDB for geometry {geometry!r}")
+    atoms, records = read_pdb_export_atoms(
+        pdb_path,
+        include_dna=include_dna,
+        include_mineral=include_mineral,
+        include_water=include_water,
+    )
+    if len(atoms) < 3:
+        raise ValueError("PDB export produced fewer than 3 atoms")
+    q = estimate_pdb_charge(pdb_path, records) if charge is None else int(charge)
+    ztot = sum(ATOMIC_Z.get(el, 0) for el, _, _, _ in atoms)
+    q = fit_charge_to_multiplicity(q, ztot, max(1, int(mult)))
+    title = f"{geometry} full model ({len(atoms)} atoms) from {pdb_path.name}"
+    lines = [
+        f"%chk={safe_export_stem(label)}_g16.chk",
+        f"%mem={mem}",
+        f"%nprocshared={max(1, int(nproc))}",
+        route.strip() or "#p B3LYP/6-31G(d)",
+        "",
+        title,
+        "",
+        f"{q} {max(1, int(mult))}",
+    ]
+    for el, x, y, z in atoms:
+        lines.append(f"{el:<2s} {x:12.6f} {y:12.6f} {z:12.6f}")
+    com = normalize_gaussian_com("\n".join(lines))
+    paths = write_gaussview_export(com, label, formats)
+    EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    pdb_out = EXPORTS_DIR / f"{safe_export_stem(label)}_g16.pdb"
+    pdb_body = "\n".join(records) + "\nEND\n"
+    pdb_out.write_text(pdb_body, encoding="utf-8")
+    paths["pdb"] = str(pdb_out.relative_to(ROOT))
+    paths["sourcePdb"] = str(pdb_path.relative_to(ROOT))
+    return {"paths": paths, "nAtoms": len(atoms), "charge": q, "geometry": geometry}
 
 
 def cancel_job(job_id: str) -> bool:
@@ -300,7 +523,8 @@ class ViewerHandler(SimpleHTTPRequestHandler):
             return
         prefix = "/api/g16/jobs/"
         if path.startswith(prefix):
-            job_id = unquote(path[len(prefix):]).strip("/")
+            parsed = urlparse(self.path)
+            job_id = unquote(parsed.path[len(prefix):]).strip("/")
             if not job_id or "/" in job_id:
                 self.send_error(404)
                 return
@@ -309,9 +533,17 @@ class ViewerHandler(SimpleHTTPRequestHandler):
                 self.send_error(404)
                 return
             log_path = job_dir(job_id) / f"{job_id}.log"
+            tail_n = LOG_TAIL_BYTES
+            if parsed.query:
+                raw = (parse_qs(parsed.query).get("tail") or [""])[0]
+                try:
+                    tail_n = max(2000, min(int(raw), 500_000))
+                except ValueError:
+                    tail_n = LOG_TAIL_BYTES
             st = dict(st)
             st["id"] = job_id
-            st["logTail"] = tail_log(log_path)
+            st["logBytes"] = log_path.stat().st_size if log_path.exists() else 0
+            st["logTail"] = tail_log(log_path, tail_n)
             self.send_json(200, st)
             return
         self.send_error(404)
@@ -320,13 +552,39 @@ class ViewerHandler(SimpleHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/api/g16/export":
             data = self.read_json_body()
-            com = (data.get("com") or "").strip()
-            if not com or len(com.splitlines()) < 5:
-                self.send_json(400, {"error": "Missing or invalid Gaussian input"})
-                return
+            source = (data.get("source") or "com").strip().lower()
             label = (data.get("label") or "g16_export").strip()
             fmt = (data.get("format") or "gjf").strip().lower()
             formats = ["gjf", "com"] if fmt == "both" else [fmt]
+            if source == "pdb":
+                geom = (data.get("geometry") or "").strip()
+                if geom not in GEOM_PDBS:
+                    self.send_json(400, {"error": f"Unknown geometry {geom!r}"})
+                    return
+                try:
+                    payload = write_gaussview_from_pdb(
+                        geom,
+                        label=label,
+                        route=(data.get("route") or "").strip(),
+                        mem=(data.get("mem") or "128GB").strip(),
+                        nproc=int(data.get("nproc") or 28),
+                        charge=data.get("charge"),
+                        mult=int(data.get("mult") or 1),
+                        include_dna=bool(data.get("includeDna", True)),
+                        include_mineral=bool(data.get("includeOxalate", True)),
+                        include_water=bool(data.get("includeWater", True)),
+                        formats=formats,
+                    )
+                except (FileNotFoundError, ValueError) as exc:
+                    self.send_json(400, {"error": str(exc)})
+                    return
+                payload["exportsDir"] = str(EXPORTS_DIR)
+                self.send_json(200, payload)
+                return
+            com = normalize_gaussian_com(data.get("com") or "")
+            if not com or len(com.splitlines()) < 5:
+                self.send_json(400, {"error": "Missing or invalid Gaussian input"})
+                return
             paths = write_gaussview_export(com, label, formats)
             if not paths:
                 self.send_json(400, {"error": "format must be gjf, com, or both"})
@@ -344,15 +602,16 @@ class ViewerHandler(SimpleHTTPRequestHandler):
                 )
                 return
             data = self.read_json_body()
-            com = (data.get("com") or "").strip()
+            com = normalize_gaussian_com(data.get("com") or "")
             if not com or len(com.splitlines()) < 5:
                 self.send_json(400, {"error": "Missing or invalid .com content"})
                 return
+            com, old_q, new_q = ensure_com_electron_parity(com)
             label = (data.get("label") or "g16_job").strip()[:80]
             job_id = uuid.uuid4().hex[:12]
             jd = job_dir(job_id)
             jd.mkdir(parents=True, exist_ok=False)
-            (jd / f"{job_id}.com").write_text(com + ("\n" if not com.endswith("\n") else ""), encoding="utf-8")
+            (jd / f"{job_id}.com").write_text(com, encoding="utf-8")
             route_line = ""
             for line in com.splitlines():
                 if line.strip().startswith("#"):
@@ -369,7 +628,11 @@ class ViewerHandler(SimpleHTTPRequestHandler):
             )
             thread = threading.Thread(target=run_job, args=(job_id,), daemon=True)
             thread.start()
-            self.send_json(200, {"jobId": job_id, "state": "queued"})
+            payload = {"jobId": job_id, "state": "queued"}
+            if new_q is not None:
+                payload["charge"] = new_q
+                payload["chargeAdjustedFrom"] = old_q
+            self.send_json(200, payload)
             return
 
         prefix = "/api/g16/jobs/"

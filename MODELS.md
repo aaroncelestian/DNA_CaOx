@@ -118,3 +118,8 @@ This project uses **two different MD setups**. Templating gels, no-DNA blobs, an
 ---
 
 See also `DNA_CaOx_simulation_plan.txt` for recommended compute workflows and observables.
+
+## Future todos
+
+1. **Generalize the viewer + pipeline for other MD work.** This interface is easier for building and iterating models (AI-assisted construction, filters, cluster export, Gaussian, trajectories) than loading CIFs and editing for hours in GaussView. Keep the viewer as the front end, but do not hard-wire it to DNA–CaOx gel-only Model 1. Future MD should be able to load other systems, force fields, and run types (periodic AMBER/OpenMM, different minerals, solution nucleation, etc.) without a rewrite.
+
