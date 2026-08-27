@@ -4,10 +4,11 @@
   --line: #2a2e36;
   --text: #e8e4d8;
   --muted: #8d8b82;
-  --amorphous: #d95f02;
+  --amorphous: #1b9e77;
   --intermediate: #7570b3;
-  --crystalline: #1b9e77;
-  --nucleation: #ffdd57;
+  --crystalline: #ffffff;
+  --nucleation: #fff9a8;
+  --shell: #d95f02;
 }
 
 * { box-sizing: border-box; }
@@ -103,6 +104,17 @@ label {
   cursor: pointer;
 }
 
+label.checkbox-row {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  line-height: 1.35;
+}
+
+label.checkbox-row input[type="checkbox"] {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
 label input[type="range"] {
   width: 100%;
   margin: 2px 0 0;
@@ -115,7 +127,7 @@ label input[type="range"] {
   font-variant-numeric: tabular-nums;
 }
 
-.swatch.shell { color: var(--amorphous); }
+.swatch.shell { color: var(--shell); }
 .swatch.amorphous { color: var(--amorphous); }
 .swatch.intermediate { color: var(--intermediate); }
 .swatch.crystalline { color: var(--crystalline); }
@@ -177,25 +189,62 @@ button:disabled {
   background: #e8e4d8;
 }
 
-#legend {
+#color-legend {
   position: absolute;
+  top: 12px;
   left: 304px;
-  bottom: 18px;
-  display: flex;
-  gap: 14px;
-  font-size: 12px;
+  max-width: 220px;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
   pointer-events: none;
 }
 
-#legend span::before {
-  content: "";
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 6px;
+.color-legend-title {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
 }
 
-#legend .near::before { background: #e07a3d; }
-#legend .far::before { background: #5ec8c8; }
-#legend .nucleation::before { background: var(--nucleation); }
+.color-legend-gradient .gradient-bar {
+  height: 10px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+}
+
+.color-legend-gradient .gradient-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.color-legend-items {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.color-legend-items span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.color-legend-items i {
+  flex: 0 0 10px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}

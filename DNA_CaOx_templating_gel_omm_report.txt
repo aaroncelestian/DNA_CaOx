@@ -3,8 +3,8 @@ FIRE (rigid oxalate) + OpenMM minimization — CaOx / WHW only (DNA fixed)
 Input     : DNA_CaOx_templating_gel.pdb
 FIRE PDB  : DNA_CaOx_templating_gel_fire.pdb
 OpenMM PDB: DNA_CaOx_templating_gel_omm.pdb
-WHW atoms : 1226 -> 1226 (same-element merge 0.0 Å)
-Groups    : 132 rigid oxalate, 132 Ca, 302 water O
+WHW atoms : 2088 -> 2088 (same-element merge 0.0 Å)
+Groups    : 220 rigid oxalate, 220 Ca, 548 water O
 FIRE      : 180 steps, freeze-beyond=0.0 Å, frozen bodies=0
 
 Restraints (same as DLS, oxalate rigid instead of intra LS):
@@ -15,13 +15,13 @@ Restraints (same as DLS, oxalate rigid instead of intra LS):
   DNA coordinates unchanged; WHW–DNA exclusion 2.20 Å
 
 Inter-group O···O < 2.00 Å:
-  start : n=4  min=1.749954856560591
+  start : n=3  min=1.6249643073003186
   FIRE  : n=0  min=None
   final : n=0  min=None
 
 OpenMM LocalEnergyMinimizer:
   platform : CPU
-  energy   : 5.7449e+01 -> 5.7449e+01 kJ/mol
+  energy   : 4.5518e+01 -> 4.5518e+01 kJ/mol
   DNA max shift : 0.0000 Å (should be ~0)
   oxalate RMSD vs rigid : 0.0000 Å
   O-O after Cartesian min : n=0  min=None

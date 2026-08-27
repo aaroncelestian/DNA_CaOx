@@ -58,6 +58,7 @@ HOTSPOT_MIN_SIZE = 3
 HOTSPOT_MAX_PER_CLUSTER = 8
 HOTSPOT_EDGE_FRAC = 0.32  # drop outer ~32% of cluster by centroid distance
 HOTSPOT_MIN_CLUSTER_NEIGHBORS = 2  # exclude dangling edge Ca
+DNA_HOTSPOT_DP_MAX = 12.0  # P-tethered coat only; outer gel rows are not DNA templating
 SEED_CRYSTAL_BFAC = 12.0  # whewellite patch from build_gel_shell --crystal-seed
 BFAC_GEL_COAT = 18.0
 BFAC_INTERMEDIATE = 22.0
@@ -289,6 +290,11 @@ def nucleation_hotspot_mask(
         core = cluster_core_indices(pts, ix, pair_score, has_384, has_629)
         if len(core) < HOTSPOT_MIN_SIZE:
             continue
+        if not np.any(d_p[core] < DNA_HOTSPOT_DP_MAX):
+            continue
+        core = core[d_p[core] < DNA_HOTSPOT_DP_MAX]
+        if len(core) < HOTSPOT_MIN_SIZE:
+            continue
         if len(core) > HOTSPOT_MAX_PER_CLUSTER:
             order = np.argsort(-pair_score[core])
             core = core[order[:HOTSPOT_MAX_PER_CLUSTER]]
@@ -305,7 +311,7 @@ def nucleation_hotspot_mask(
             }
         )
 
-    mask &= outward
+    mask &= outward & (d_p < DNA_HOTSPOT_DP_MAX)
     return mask, clusters_out
 
 

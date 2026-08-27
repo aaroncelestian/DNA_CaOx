@@ -151,11 +151,22 @@ def ca_site_ok(cand, dna_xyz, placed_ca, min_dna=2.25, min_ca=MIN_CA_CA_COM):
     return True
 
 
-def add_second_row(sites, placements, frag, dna_xyz, dna_o, extra_per_p: int):
+def add_second_row(
+    sites,
+    placements,
+    frag,
+    dna_xyz,
+    dna_o,
+    extra_per_p: int,
+    r_lo=4.0,
+    r_hi=9.0,
+    try_edge=True,
+    outward_bias=0.45,
+):
     """Disordered extra CaOx around each phosphate unit (not a planted lattice).
 
-    One attempt along the outward 3.84 Å COM edge-share, then random fills
-    in the 4–9 Å coat so a local patch has enough CaOx/water to organize.
+    Optional first attempt along the outward 3.84 Å COM edge-share, then random
+    fills in [r_lo, r_hi] so a local patch has enough CaOx to organize.
     """
     if extra_per_p <= 0:
         return sites, placements
@@ -170,15 +181,18 @@ def add_second_row(sites, placements, frag, dna_xyz, dna_o, extra_per_p: int):
 
     extra_sites, extra_pl = [], []
     p_sites = [s for s in sites if s.get("p_bound", True)]
+    n_try = extra_per_p * 40
     for parent in p_sites:
         n_here = 0
-        candidates = [parent["ca"] + 3.843 * parent["outward"]]
-        for _ in range(extra_per_p * 28):
+        candidates = []
+        if try_edge:
+            candidates.append(parent["ca"] + 3.843 * parent["outward"])
+        for _ in range(n_try):
             vec = RNG.normal(size=3)
             vec /= max(float(np.linalg.norm(vec)), 1e-8)
-            vec = 0.55 * vec + 0.45 * parent["outward"]
+            vec = (1.0 - outward_bias) * vec + outward_bias * parent["outward"]
             vec /= max(float(np.linalg.norm(vec)), 1e-8)
-            r = float(RNG.uniform(4.0, 9.0))
+            r = float(RNG.uniform(r_lo, r_hi))
             candidates.append(parent["ca"] + r * vec)
         for cand in candidates:
             if n_here >= extra_per_p:
@@ -218,8 +232,36 @@ def add_second_row(sites, placements, frag, dna_xyz, dna_o, extra_per_p: int):
     return sites + extra_sites, placements + extra_pl
 
 
+# Disordered coat shells per P-bound CaOx (not a planted lattice).
+COAT_LAYERS_STANDARD = [
+    {"n": 2, "r_lo": 4.0, "r_hi": 9.0, "try_edge": True, "outward_bias": 0.45},
+    {"n": 2, "r_lo": 8.5, "r_hi": 14.0, "try_edge": False, "outward_bias": 0.65},
+]
+COAT_LAYERS_THICK = COAT_LAYERS_STANDARD + [
+    {"n": 2, "r_lo": 13.5, "r_hi": 18.5, "try_edge": False, "outward_bias": 0.72},
+    {"n": 2, "r_lo": 17.5, "r_hi": 22.5, "try_edge": False, "outward_bias": 0.78},
+]
+
+
+def apply_coat_layers(sites, placements, frag, dna_xyz, dna_o, layers):
+    for layer in layers:
+        sites, placements = add_second_row(
+            sites,
+            placements,
+            frag,
+            dna_xyz,
+            dna_o,
+            layer["n"],
+            r_lo=layer["r_lo"],
+            r_hi=layer["r_hi"],
+            try_edge=layer.get("try_edge", False),
+            outward_bias=layer.get("outward_bias", 0.6),
+        )
+    return sites, placements
+
+
 def pack_coat_waters(solute_xyz, dna_xyz, n_target: int, inner=2.20, outer=9.5):
-    """Extra water O sites in the first ~10 Å coat (not a 30 Å slab)."""
+    """Extra water O sites in the coat (not a 30 Å slab)."""
     if n_target <= 0 or len(solute_xyz) == 0:
         return []
     lo = solute_xyz.min(0) - outer
@@ -518,25 +560,30 @@ def main():
         help="Oxalate placement: random twist per site or geometry-biased outward.",
     )
     ap.add_argument(
+        "--templating-thick",
+        action="store_true",
+        help="Five-row templating gel (P + 4 coat shells to ~22 Å); "
+        "writes DNA_CaOx_templating_gel_thick*.pdb — does not touch templating_gel.",
+    )
+    ap.add_argument(
         "--templating",
         action="store_true",
-        help="Thin gel for phosphate-templating test: strand-aware Ca–Ca "
-        "(allow 3.84 Å), second-row CaOx + extra waters, write "
-        "DNA_CaOx_templating_gel*.pdb (does not overwrite gel_altP_geom "
-        "used by the 30 Å shell).",
+        help="Three-row templating gel for phosphate-templating test: strand-aware "
+        "Ca–Ca (allow 3.84 Å), two disordered coat shells + extra waters, write "
+        "DNA_CaOx_templating_gel*.pdb (does not overwrite gel_altP_geom).",
     )
     ap.add_argument(
         "--extra-per-p",
         type=int,
         default=None,
-        help="Extra CaOx units per phosphate (disordered 4–9 Å coat). "
-        "Templating default: 2.",
+        help="Extra CaOx units per phosphate (disordered coat). "
+        "Templating default: 4 (three-row); thick: 8 (five-row).",
     )
     ap.add_argument(
         "--extra-waters",
         type=int,
         default=None,
-        help="Extra water O sites in the ~10 Å coat. Templating default: 200.",
+        help="Extra water O sites in the coat. Templating default: 400; thick: 800.",
     )
     ap.add_argument("-o", "--output", type=Path, default=None)
     ap.add_argument("--seeds", type=Path, default=None)
@@ -548,7 +595,9 @@ def main():
             "gel_geom" if args.orient == "geometry" else "gel_first"
         )
     )
-    if args.templating:
+    if args.templating_thick:
+        tag = "templating_gel_thick"
+    elif args.templating:
         tag = "templating_gel_altP" if args.alt_p else "templating_gel"
     out_pdb = args.output or ROOT / f"DNA_CaOx_{tag}.pdb"
     out_seeds = args.seeds or ROOT / f"DNA_CaOx_{tag}_seeds.pdb"
@@ -642,19 +691,38 @@ def main():
             kept.append(a)
         placements[idx] = kept
 
+    templating = args.templating or args.templating_thick
+    coat_layers = (
+        COAT_LAYERS_THICK
+        if args.templating_thick
+        else COAT_LAYERS_STANDARD if templating else []
+    )
+    default_extra = sum(layer["n"] for layer in coat_layers)
     extra_per_p = (
         args.extra_per_p
         if args.extra_per_p is not None
-        else (2 if args.templating else 0)
+        else default_extra
     )
+    default_waters = 800 if args.templating_thick else (400 if templating else 0)
     extra_waters_n = (
         args.extra_waters
         if args.extra_waters is not None
-        else (200 if args.templating else 0)
+        else default_waters
     )
     n_p_units = sum(1 for s in sites if s.get("p_bound", True))
-    sites, placements = add_second_row(
-        sites, placements, frag, dna_xyz, dna_o, extra_per_p
+    if coat_layers and extra_per_p != default_extra:
+        # Custom --extra-per-p: fill shells in order until quota met.
+        layers = []
+        left = extra_per_p
+        for layer in coat_layers:
+            if left <= 0:
+                break
+            n = min(layer["n"], left)
+            layers.append({**layer, "n": n})
+            left -= n
+        coat_layers = layers
+    sites, placements = apply_coat_layers(
+        sites, placements, frag, dna_xyz, dna_o, coat_layers
     )
     n_extra_units = len(sites) - n_p_units
     water_ids = {a["serial"] for a in frag["waters"]}
@@ -675,10 +743,12 @@ def main():
     solute = []
     for unit in placements:
         solute.extend(a["xyz"] for a in unit if a["element"].upper() != "H")
+    water_outer = max((layer["r_hi"] for layer in coat_layers), default=9.5) + 4.0
     extra_waters = pack_coat_waters(
         np.array(solute) if solute else dna_xyz,
         dna_xyz,
         extra_waters_n,
+        outer=water_outer,
     )
 
     # Report
@@ -696,7 +766,7 @@ def main():
         f"DNA source : {DNA_PDB.name}",
         f"CaOx source: {CAOX_PDB.name} (rigid fragment, {orient_desc})",
         f"Phosphates : {len(groups)} total  →  {n_p_units} CaOx at P ({p_desc})"
-        + (f"  + {n_extra_units} second-row CaOx" if n_extra_units else ""),
+        + (f"  + {n_extra_units} extra coat CaOx" if n_extra_units else ""),
         f"Strands    : {len(strands)} ({', '.join(str(len(s)) for s in strands)} P each)",
         "",
         "This is NOT cut from Whewellite - xtl.pdb. Order emerges only after",
@@ -797,7 +867,7 @@ def main():
         f"REMARK   3 Oxalate orientation: {orient_desc}.",
         "REMARK   4 Relax with fire_openmm; use --no-com-targets for honest gel.",
         f"REMARK   5 {len(sites)} COM units on chain X "
-        f"({n_p_units} at P, {n_extra_units} second-row).",
+        f"({n_p_units} at P, {n_extra_units} extra coat).",
         f"REMARK   6 Strand Ca-Ca floor {MIN_CA_CA_COM:.2f} A (COM 3.84 allowed).",
         f"REMARK   7 Extra waters: {len(extra_waters)} HOH on chain W.",
     ]

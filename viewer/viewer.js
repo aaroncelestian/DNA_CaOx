@@ -1,27 +1,45 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-const MODELS = window.DNA_CAOX_MODELS || { sphere: window.DNA_CAOX_MODEL };
+const MODELS = window.DNA_CAOX_MODELS || { shell_lattice: window.DNA_CAOX_MODEL };
 const DEFAULT_GEOM = "shell_lattice";
 let MODEL =
   MODELS[DEFAULT_GEOM] ||
-  MODELS.altp ||
-  MODELS.local ||
-  MODELS.sphere ||
+  MODELS.templating_gel ||
+  MODELS.slab ||
   window.DNA_CAOX_MODEL;
 if (!MODEL) {
   throw new Error("model-data.js did not load");
 }
 
 const PHASES = ["amorphous", "intermediate", "crystalline"];
+// Warm gold yellow — triad with intermediate purple (#7570b3) and amorphous teal (#1b9e77)
+const ACCENT_YELLOW = {
+  core: 0xfff066,
+  bright: 0xfff9a8,
+  deep: 0xffd24d,
+  emissive: 0xffe033,
+  glow: 0xfff2aa,
+};
 const PHASE_COLOR = {
-  amorphous: 0xd95f02,
+  amorphous: 0x1b9e77,
   intermediate: 0x7570b3,
-  crystalline: 0x1b9e77,
-  nucleation: 0xffdd57,
+  crystalline: 0xffffff,
+  nucleation: ACCENT_YELLOW.bright,
   shell: 0xd95f02,
 };
-const STRAND_COLOR = { A: 0xf2e6c9, B: 0xb7c9d9, C: 0xf2e6c9, D: 0xb7c9d9 };
+// DNA backbone + phosphate palette (pink family for legibility vs gold hotspots)
+const DNA_PINK = {
+  backbone: 0xf5b0d0,
+  phosphate: 0xff9ec8,
+  trace: 0xa8386e,
+};
+const STRAND_COLOR = {
+  A: DNA_PINK.backbone,
+  B: DNA_PINK.backbone,
+  C: DNA_PINK.backbone,
+  D: DNA_PINK.backbone,
+};
 
 let ca = MODEL.ca;
 let nCa = ca.x.length;
@@ -29,10 +47,15 @@ let trajData = null;
 let trajFrame = 0;
 let trajPlaying = false;
 let trajTimer = null;
+let trajFrame0Ca = null;
+let trajFrame0Oxalate = null;
+let trajAmp = 1;
+let trajMaxDisp = 0;
 const caRest = { x: [...ca.x], y: [...ca.y], z: [...ca.z] };
 let oxalateLines = null;
 let oxalateRest = null;
 let oxalateUnitOffsets = [];
+let waterMesh = null;
 
 const canvas = document.getElementById("c");
 let renderer;
@@ -61,7 +84,186 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.autoRotate = false;
 controls.autoRotateSpeed = 0.45; // ~2.2 min per orbit at 60 fps
+controls.zoomToCursor = false;
+controls.enablePan = false; // custom pan moves camera; pivot stays on helix axis
 controls.target.set(0, 0, 0);
+controls.cursor.copy(controls.target);
+
+const orbitPivot = new THREE.Vector3();
+const panRight = new THREE.Vector3();
+const panUp = new THREE.Vector3();
+const viewPan = new THREE.Vector3();
+const panState = { active: false, pointerId: null, lastX: 0, lastY: 0 };
+let spacePanArm = false;
+
+function getHelixCenter() {
+  const hx = MODEL.helix || {};
+  const yMid = 0.5 * ((hx.dnaZmin ?? 0) + (hx.dnaZmax ?? 0));
+  orbitPivot.set(0, yMid, 0);
+  return orbitPivot;
+}
+
+function lockOrbitToHelixCenter() {
+  getHelixCenter();
+  controls.target.copy(orbitPivot).add(viewPan);
+  controls.cursor.copy(controls.target);
+}
+
+function panPixelScale() {
+  const el = canvas;
+  if (!el.clientHeight) return 0;
+  getHelixCenter();
+  panUp.copy(orbitPivot).add(viewPan); // temp: orbit target
+  panRight.copy(camera.position).sub(panUp);
+  let dist = panRight.length();
+  dist *= Math.tan((camera.fov * Math.PI) / 360);
+  return (2 * dist) / el.clientHeight;
+}
+
+function wheelPanDeltas(e) {
+  let dx = e.deltaX;
+  let dy = e.deltaY;
+  if (e.deltaMode === 1) {
+    dx *= 16;
+    dy *= 16;
+  } else if (e.deltaMode === 2) {
+    dx *= 100;
+    dy *= 100;
+  }
+  return { dx, dy };
+}
+
+function panCameraByPixels(deltaX, deltaY) {
+  const scale = panPixelScale();
+  if (!scale) return;
+  camera.updateMatrixWorld();
+  panRight.setFromMatrixColumn(camera.matrixWorld, 0).multiplyScalar(-deltaX * scale);
+  viewPan.add(panRight);
+  camera.position.add(panRight);
+  panUp.setFromMatrixColumn(camera.matrixWorld, 1).multiplyScalar(deltaY * scale);
+  viewPan.add(panUp);
+  camera.position.add(panUp);
+  lockOrbitToHelixCenter();
+}
+
+function wantsPanPointer(e) {
+  if (spacePanArm) return true;
+  return (
+    e.button === 2 ||
+    e.button === 1 ||
+    (e.button === 0 && (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey))
+  );
+}
+
+function onDocumentPanMove(e) {
+  if (!panState.active) return;
+  if (panState.pointerId != null && e.pointerId !== panState.pointerId) return;
+  const dx = e.clientX - panState.lastX;
+  const dy = e.clientY - panState.lastY;
+  panState.lastX = e.clientX;
+  panState.lastY = e.clientY;
+  if (dx || dy) panCameraByPixels(dx, dy);
+  e.preventDefault();
+}
+
+function onDocumentPanEnd(e) {
+  if (panState.pointerId != null && e.pointerId !== panState.pointerId) return;
+  panState.active = false;
+  panState.pointerId = null;
+  document.removeEventListener("pointermove", onDocumentPanMove);
+  document.removeEventListener("pointerup", onDocumentPanEnd);
+  document.removeEventListener("pointercancel", onDocumentPanEnd);
+  try {
+    canvas.releasePointerCapture(e.pointerId);
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function setupCanvasPan() {
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  document.addEventListener("keydown", (e) => {
+    if (e.code !== "Space" || e.repeat) return;
+    if (e.target.closest("#panel input, #panel textarea, #panel select, #panel button")) return;
+    spacePanArm = true;
+    e.preventDefault();
+  });
+  document.addEventListener("keyup", (e) => {
+    if (e.code === "Space") spacePanArm = false;
+  });
+
+  canvas.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (!wantsPanPointer(e)) return;
+      panState.active = true;
+      panState.pointerId = e.pointerId;
+      panState.lastX = e.clientX;
+      panState.lastY = e.clientY;
+      document.addEventListener("pointermove", onDocumentPanMove);
+      document.addEventListener("pointerup", onDocumentPanEnd);
+      document.addEventListener("pointercancel", onDocumentPanEnd);
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch (_) {
+        /* ignore */
+      }
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    },
+    { capture: true }
+  );
+
+  canvas.addEventListener(
+    "wheel",
+    (e) => {
+      if (e.ctrlKey) return; // trackpad pinch → OrbitControls zoom
+      const { dx, dy } = wheelPanDeltas(e);
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      panCameraByPixels(-dx, -dy);
+    },
+    { passive: false, capture: true }
+  );
+
+  // Safari / trackpad right-click drag sometimes uses mouse events only
+  canvas.addEventListener(
+    "mousedown",
+    (e) => {
+      if (!wantsPanPointer(e) || panState.active) return;
+      panState.active = true;
+      panState.pointerId = -1;
+      panState.lastX = e.clientX;
+      panState.lastY = e.clientY;
+      document.addEventListener("mousemove", onMousePanMove);
+      document.addEventListener("mouseup", onMousePanEnd);
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    },
+    { capture: true }
+  );
+}
+
+function onMousePanMove(e) {
+  if (!panState.active || panState.pointerId !== -1) return;
+  const dx = e.clientX - panState.lastX;
+  const dy = e.clientY - panState.lastY;
+  panState.lastX = e.clientX;
+  panState.lastY = e.clientY;
+  if (dx || dy) panCameraByPixels(dx, dy);
+  e.preventDefault();
+}
+
+function onMousePanEnd(e) {
+  if (!panState.active || panState.pointerId !== -1) return;
+  panState.active = false;
+  panState.pointerId = null;
+  document.removeEventListener("mousemove", onMousePanMove);
+  document.removeEventListener("mouseup", onMousePanEnd);
+}
+
+setupCanvasPan();
 
 scene.add(new THREE.AmbientLight(0x9aa4b2, 0.55));
 const key = new THREE.DirectionalLight(0xfff4e5, 1.15);
@@ -169,13 +371,13 @@ function buildDNA() {
 
     const tube = new THREE.Mesh(
       new THREE.TubeGeometry(new THREE.CatmullRomCurve3(p, false, "centripetal"), 40, 0.28, 8, false),
-      new THREE.MeshPhysicalMaterial({ color: 0xc45c26, roughness: 0.4 })
+      new THREE.MeshPhysicalMaterial({ color: DNA_PINK.trace, roughness: 0.4 })
     );
     tube.name = "phosphate-trace";
     dnaGroup.add(tube);
 
     const pGeom = new THREE.SphereGeometry(0.85, 16, 12);
-    const pMat = new THREE.MeshPhysicalMaterial({ color: 0xe8a14b, roughness: 0.3 });
+    const pMat = new THREE.MeshPhysicalMaterial({ color: DNA_PINK.phosphate, roughness: 0.3 });
     p.forEach((pt) => {
       const s = new THREE.Mesh(pGeom, pMat);
       s.position.copy(pt);
@@ -250,6 +452,17 @@ function buildDNA() {
   }
 }
 
+function buildEnvelopeGeometry(env) {
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(env.vertices.flat(), 3)
+  );
+  geom.setIndex(env.indices);
+  geom.computeVertexNormals();
+  return geom;
+}
+
 function buildEnvelopes() {
   const names = [...PHASES];
   if (MODEL.envelopes?.shell?.vertices?.length) names.push("shell");
@@ -257,21 +470,48 @@ function buildEnvelopes() {
   names.forEach((name) => {
     const env = MODEL.envelopes[name];
     if (!env || !env.vertices.length) return;
-    const geom = new THREE.BufferGeometry();
-    geom.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(env.vertices.flat(), 3)
-    );
-    geom.setIndex(env.indices);
-    geom.computeVertexNormals();
+    const geom = buildEnvelopeGeometry(env);
+    if (name === "nucleation") {
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: ACCENT_YELLOW.glow,
+        transparent: true,
+        opacity: 0.38,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        toneMapped: false,
+      });
+      const glowMesh = new THREE.Mesh(geom.clone(), glowMat);
+      glowMesh.scale.setScalar(1.05);
+      glowMesh.userData.phase = name;
+      glowMesh.userData.glow = true;
+      glowMesh.renderOrder = 0;
+      envGroup.add(glowMesh);
+
+      const mat = new THREE.MeshPhysicalMaterial({
+        color: ACCENT_YELLOW.bright,
+        transparent: true,
+        opacity: 0.34,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        roughness: 0.18,
+        metalness: 0.0,
+        emissive: ACCENT_YELLOW.emissive,
+        emissiveIntensity: 0.9,
+        toneMapped: false,
+      });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.userData.phase = name;
+      mesh.renderOrder = 1;
+      envGroup.add(mesh);
+      return;
+    }
     const mat = new THREE.MeshLambertMaterial({
       color: PHASE_COLOR[name] || PHASE_COLOR.intermediate,
       transparent: true,
-      opacity: name === "nucleation" ? 0.24 : name === "shell" ? 0.16 : 0.2,
+      opacity: name === "shell" ? 0.16 : 0.2,
       side: THREE.DoubleSide,
       depthWrite: false,
-      emissive: name === "nucleation" ? 0x221a00 : 0x000000,
-      emissiveIntensity: name === "nucleation" ? 0.12 : 0,
     });
     const mesh = new THREE.Mesh(geom, mat);
     mesh.userData.phase = name;
@@ -280,12 +520,101 @@ function buildEnvelopes() {
 }
 
 let hotspotMesh = null;
+let hotspotGlowMesh = null;
 let hotspotIndices = [];
 let hotspotClusterMeshes = [];
 
 function dpColor(dp) {
   const t = Math.min(1, (dp || 0) / 32);
   return new THREE.Color().setHSL(0.08 + 0.55 * (1 - t), 0.75, 0.5);
+}
+
+function threeColorToCss(color) {
+  return `#${color.getHexString()}`;
+}
+
+function gradientCssFromFn(fn, steps = 10) {
+  const stops = [];
+  for (let i = 0; i <= steps; i++) {
+    const pct = (i / steps) * 100;
+    stops.push(`${threeColorToCss(fn(i / steps))} ${pct}%`);
+  }
+  return `linear-gradient(to right, ${stops.join(", ")})`;
+}
+
+const COLOR_LEGEND = {
+  distance: {
+    title: "Distance from P",
+    type: "gradient",
+    gradient: () => gradientCssFromFn((t) => dpColor(t * 32)),
+    low: "near P (0 Å)",
+    high: "far (32 Å)",
+  },
+  phase: {
+    title: "Phase",
+    type: "items",
+    items: [
+      { color: PHASE_COLOR.amorphous, label: "Amorphous" },
+      { color: PHASE_COLOR.intermediate, label: "Nucleation (phase)" },
+      { color: PHASE_COLOR.crystalline, label: "Strong order" },
+    ],
+  },
+  score: {
+    title: "COM-net score",
+    type: "gradient",
+    gradient: () =>
+      gradientCssFromFn((t) => {
+        const c = new THREE.Color().setHSL(0.55 - 0.45 * t, 0.65, 0.45);
+        return c;
+      }),
+    low: "low (0)",
+    high: "high (0.45)",
+  },
+  comRegistry: {
+    title: "COM pair correlation",
+    type: "gradient",
+    gradient: () =>
+      gradientCssFromFn((t) => {
+        const c = new THREE.Color().setHSL(0.13 - 0.1 * t, 0.9, 0.42 + 0.18 * t);
+        return c;
+      }),
+    low: "weak (0)",
+    high: "strong (0.28)",
+  },
+};
+
+function updateColorLegend(colorMode) {
+  const root = $("color-legend");
+  if (!root) return;
+  const spec = COLOR_LEGEND[colorMode];
+  if (!spec) {
+    root.hidden = true;
+    return;
+  }
+  const titleEl = root.querySelector(".color-legend-title");
+  const bodyEl = root.querySelector(".color-legend-body");
+  if (!titleEl || !bodyEl) return;
+  titleEl.textContent = spec.title;
+  if (spec.type === "gradient") {
+    bodyEl.innerHTML = `
+      <div class="color-legend-gradient">
+        <div class="gradient-bar" style="background: ${spec.gradient()}"></div>
+        <div class="gradient-labels">
+          <span>${spec.low}</span>
+          <span>${spec.high}</span>
+        </div>
+      </div>`;
+  } else {
+    bodyEl.innerHTML = `
+      <div class="color-legend-items">
+        ${spec.items
+          .map(
+            ({ color, label }) =>
+              `<span><i style="background:#${color.toString(16).padStart(6, "0")}"></i>${label}</span>`
+          )
+          .join("")}</div>`;
+  }
+  root.hidden = false;
 }
 
 function caKeep(i, dmin, dmax, rmax, slab) {
@@ -297,24 +626,49 @@ function caKeep(i, dmin, dmax, rmax, slab) {
   );
 }
 
+function hotspotColorFromDp(dp) {
+  const t = Math.min(1, (dp || 0) / 32);
+  // Bright lemon near P → warm gold far; stay luminous against pink DNA.
+  return new THREE.Color().setHSL(0.13 - 0.07 * t, 1.0, 0.72 - 0.1 * t);
+}
+
+function hotspotGlowColorFromDp(dp) {
+  const c = hotspotColorFromDp(dp);
+  c.lerp(new THREE.Color(0xffffff), 0.22);
+  return c;
+}
+
 function hotspotColor(i) {
-  return dpColor(ca.dP[i]);
+  return hotspotColorFromDp(ca.dP[i]);
+}
+
+function setHotspotInstance(mesh, k, i, scale, on, colorFn = hotspotColor) {
+  const dummy = new THREE.Object3D();
+  dummy.position.set(ca.x[i], ca.y[i], ca.z[i]);
+  dummy.scale.setScalar(on ? scale : 0.001);
+  dummy.updateMatrix();
+  mesh.setMatrixAt(k, dummy.matrix);
+  mesh.setColorAt(k, colorFn(i));
 }
 
 function updateHotspotMarkers(dmin, dmax, rmax, slab) {
   if (!hotspotMesh || !hotspotIndices.length) return;
-  const dummy = new THREE.Object3D();
   for (let k = 0; k < hotspotIndices.length; k++) {
     const i = hotspotIndices[k];
     const on = caKeep(i, dmin, dmax, rmax, slab);
-    dummy.position.set(ca.x[i], ca.y[i], ca.z[i]);
-    dummy.scale.setScalar(on ? 1.35 : 0.001);
-    dummy.updateMatrix();
-    hotspotMesh.setMatrixAt(k, dummy.matrix);
-    hotspotMesh.setColorAt(k, hotspotColor(i));
+    setHotspotInstance(hotspotMesh, k, i, 1.45, on);
+    if (hotspotGlowMesh) {
+      setHotspotInstance(hotspotGlowMesh, k, i, 2.35, on, (idx) =>
+        hotspotGlowColorFromDp(ca.dP[idx])
+      );
+    }
   }
   hotspotMesh.instanceMatrix.needsUpdate = true;
   if (hotspotMesh.instanceColor) hotspotMesh.instanceColor.needsUpdate = true;
+  if (hotspotGlowMesh) {
+    hotspotGlowMesh.instanceMatrix.needsUpdate = true;
+    if (hotspotGlowMesh.instanceColor) hotspotGlowMesh.instanceColor.needsUpdate = true;
+  }
 }
 
 function buildHotspotClusterRings() {
@@ -335,32 +689,51 @@ function buildHotspotMarkers() {
   }
   if (!pts.length) return;
   hotspotIndices = pts;
-  const geom = new THREE.SphereGeometry(1, 12, 10);
-  const mat = new THREE.MeshStandardMaterial({
+  const geom = new THREE.SphereGeometry(1, 14, 12);
+  const mat = new THREE.MeshPhysicalMaterial({
     vertexColors: true,
-    roughness: 0.35,
-    metalness: 0.05,
-    emissive: 0x443300,
-    emissiveIntensity: 0.55,
+    roughness: 0.18,
+    metalness: 0.0,
+    emissive: ACCENT_YELLOW.emissive,
+    emissiveIntensity: 0.95,
     transparent: true,
-    opacity: 0.92,
+    opacity: 0.98,
+    toneMapped: false,
   });
   hotspotMesh = new THREE.InstancedMesh(geom, mat, pts.length);
   hotspotMesh.instanceColor = new THREE.InstancedBufferAttribute(
     new Float32Array(pts.length * 3),
     3
   );
-  const dummy = new THREE.Object3D();
+  const glowMat = new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.42,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+  });
+  hotspotGlowMesh = new THREE.InstancedMesh(geom, glowMat, pts.length);
+  hotspotGlowMesh.instanceColor = new THREE.InstancedBufferAttribute(
+    new Float32Array(pts.length * 3),
+    3
+  );
+  hotspotGlowMesh.renderOrder = 1;
   for (let k = 0; k < pts.length; k++) {
     const i = pts[k];
+    setHotspotInstance(hotspotMesh, k, i, 1.45, true);
+    const dummy = new THREE.Object3D();
     dummy.position.set(ca.x[i], ca.y[i], ca.z[i]);
-    dummy.scale.setScalar(1.35);
+    dummy.scale.setScalar(2.35);
     dummy.updateMatrix();
-    hotspotMesh.setMatrixAt(k, dummy.matrix);
-    hotspotMesh.setColorAt(k, hotspotColor(i));
+    hotspotGlowMesh.setMatrixAt(k, dummy.matrix);
+    hotspotGlowMesh.setColorAt(k, hotspotGlowColorFromDp(ca.dP[i]));
   }
   hotspotMesh.instanceMatrix.needsUpdate = true;
   hotspotMesh.instanceColor.needsUpdate = true;
+  hotspotGlowMesh.instanceMatrix.needsUpdate = true;
+  hotspotGlowMesh.instanceColor.needsUpdate = true;
+  hotspotGroup.add(hotspotGlowMesh);
   hotspotGroup.add(hotspotMesh);
   buildHotspotClusterRings();
 }
@@ -411,7 +784,7 @@ function buildRadialGuides() {
   const h = Math.max(12, y1 - y0);
   const y = 0.5 * (y0 + y1);
   const rings = [
-    { r: rP, color: 0xc45c26, opacity: 0.5 },
+    { r: rP, color: DNA_PINK.trace, opacity: 0.5 },
     { r: rP + comA, color: 0x1b9e77, opacity: 0.38 },
     { r: rP + 2 * comA, color: 0x88c9b0, opacity: 0.22 },
   ];
@@ -432,6 +805,33 @@ function buildRadialGuides() {
   });
 }
 
+function syncUnrollCaption(shown, total, dmin, dmax, rmax, slab) {
+  const el = $("unroll-caption");
+  if (!el) return;
+  const w = MODEL.nucleationWhere;
+  const geom = MODEL.geometry || MODEL.source || "model";
+  const filter =
+    `filters: d(P) ${dmin}–${dmax} Å, peel ≤${rmax} Å` +
+    (slab >= 49 ? ", full length" : `, |axis| ≤ ${slab} Å`);
+  const exported = window.DNA_CAOX_EXPORTED_AT;
+  const parts = [
+    `${geom}: ${shown} of ${total} hotspot Ca on unroll (${filter}).` +
+      (exported ? ` Data ${exported}.` : ""),
+    "Pink dots = phosphates; bright gold dots = symmetry hotspots (lemon = near P, gold = far).",
+  ];
+  if (w && w.nPWithHot8 != null && w.nP != null) {
+    parts.push(
+      `P with hotspot ≤8 Å: ${w.nPWithHot8}/${w.nP}.` +
+        (w.medianDpHot != null
+          ? ` Median hotspot d(P) ${w.medianDpHot} Å vs ${w.medianDpAll} Å for all Ca.`
+          : "")
+    );
+  } else if (!total) {
+    parts.push("No COM pair-order hotspots in this model.");
+  }
+  el.textContent = parts.join(" ");
+}
+
 function drawUnroll(dmin, dmax, rmax, slab) {
   const el = $("unroll");
   if (!el) return;
@@ -446,7 +846,7 @@ function drawUnroll(dmin, dmax, rmax, slab) {
   const span = yMax - yMin || 1;
   const padL = 22;
   const padR = 8;
-  const padT = 10;
+  const padT = 18;
   const padB = 16;
   const xOf = (phi) => padL + ((phi + 180) / 360) * (w - padL - padR);
   const yOf = (y) => padT + (1 - (y - yMin) / span) * (h - padT - padB);
@@ -461,24 +861,33 @@ function drawUnroll(dmin, dmax, rmax, slab) {
     (s.residues || []).forEach((r) => {
       const p = r.P;
       const phi = (Math.atan2(p[2], p[0]) * 180) / Math.PI;
-      ctx.fillStyle = "#c45c26";
+      ctx.fillStyle = "#ff9ec8";
       ctx.beginPath();
       ctx.arc(xOf(phi), yOf(p[1]), 2.3, 0, Math.PI * 2);
       ctx.fill();
     });
   });
+  let shown = 0;
+  let total = 0;
   if (ca.hotspot) {
     for (let i = 0; i < nCa; i++) {
-      if (!ca.hotspot[i] || !caKeep(i, dmin, dmax, rmax, slab)) continue;
+      if (!ca.hotspot[i]) continue;
+      total += 1;
+      if (!caKeep(i, dmin, dmax, rmax, slab)) continue;
+      shown += 1;
       const phi =
         ca.phi != null ? ca.phi[i] : (Math.atan2(ca.z[i], ca.x[i]) * 180) / Math.PI;
-      const col = dpColor(ca.dP[i]);
+      const col = hotspotColor(i);
       ctx.fillStyle = `rgb(${Math.round(col.r * 255)},${Math.round(col.g * 255)},${Math.round(col.b * 255)})`;
       ctx.beginPath();
       ctx.arc(xOf(phi), yOf(ca.y[i]), 2.7, 0, Math.PI * 2);
       ctx.fill();
     }
   }
+  ctx.fillStyle = "#c8c4bc";
+  ctx.font = "bold 9px ui-sans-serif, system-ui, sans-serif";
+  ctx.fillText(`${shown}/${total} hotspots`, padL, padT - 1);
+
   ctx.fillStyle = "#8d8b82";
   ctx.font = "9px ui-sans-serif, system-ui, sans-serif";
   ctx.fillText("−180°", padL, h - 4);
@@ -488,6 +897,31 @@ function drawUnroll(dmin, dmax, rmax, slab) {
   ctx.rotate(-Math.PI / 2);
   ctx.fillText("axis", 0, 0);
   ctx.restore();
+
+  const legW = 68;
+  const legH = 7;
+  const legX = w - padR - legW;
+  const legY = padT;
+  const grad = ctx.createLinearGradient(legX, legY, legX + legW, legY);
+  for (let i = 0; i <= 10; i++) {
+    const t = i / 10;
+    const col = hotspotColorFromDp(t * 32);
+    grad.addColorStop(
+      t,
+      `rgb(${Math.round(col.r * 255)},${Math.round(col.g * 255)},${Math.round(col.b * 255)})`
+    );
+  }
+  ctx.fillStyle = grad;
+  ctx.fillRect(legX, legY, legW, legH);
+  ctx.strokeStyle = "#2a2e36";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(legX, legY, legW, legH);
+  ctx.fillStyle = "#8d8b82";
+  ctx.font = "8px ui-sans-serif, system-ui, sans-serif";
+  ctx.fillText("near P", legX, legY + legH + 9);
+  ctx.fillText("far", legX + legW - 16, legY + legH + 9);
+  syncUnrollCaption(shown, total, dmin, dmax, rmax, slab);
+  return { shown, total };
 }
 
 const sprite = (() => {
@@ -573,6 +1007,54 @@ function rebuildMineral() {
   caSpheres.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   caSpheres.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(nCa * 3), 3);
   mineralGroup.add(caSpheres);
+  buildWater();
+}
+
+function buildWater() {
+  waterMesh = null;
+  const w = MODEL.water;
+  if (!w || !w.x || !w.x.length) return;
+  const n = w.x.length;
+  const geom = new THREE.SphereGeometry(0.68, 8, 6);
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: 0x6a9cc9,
+    roughness: 0.4,
+    transparent: true,
+    opacity: 0.5,
+  });
+  waterMesh = new THREE.InstancedMesh(geom, mat, n);
+  waterMesh.name = "water";
+  const d = new THREE.Object3D();
+  for (let i = 0; i < n; i++) {
+    d.position.set(w.x[i], w.y[i], w.z[i]);
+    d.updateMatrix();
+    waterMesh.setMatrixAt(i, d.matrix);
+  }
+  waterMesh.instanceMatrix.needsUpdate = true;
+  mineralGroup.add(waterMesh);
+}
+
+function applyWater(rmax, slab) {
+  if (!waterMesh || !MODEL.water?.x?.length) return 0;
+  const w = MODEL.water;
+  const n = w.x.length;
+  let shown = 0;
+  for (let i = 0; i < n; i++) {
+    const r = Math.hypot(w.x[i], w.z[i]);
+    const keep = r <= rmax && Math.abs(w.y[i]) <= slab;
+    if (!keep) {
+      dummy.position.set(0, 1e6, 0);
+      dummy.scale.setScalar(0.001);
+    } else {
+      dummy.position.set(w.x[i], w.y[i], w.z[i]);
+      dummy.scale.setScalar(1);
+      shown += 1;
+    }
+    dummy.updateMatrix();
+    waterMesh.setMatrixAt(i, dummy.matrix);
+  }
+  waterMesh.instanceMatrix.needsUpdate = true;
+  return shown;
 }
 
 function packPoints(obj, packed) {
@@ -650,7 +1132,10 @@ function setView(kind) {
   if (kind === "end") camera.position.set(0, r * 1.6, 0.01);
   else if (kind === "seed") camera.position.set(r * 1.35, 8, 18);
   else camera.position.set(18, 8, r * 1.15);
-  controls.target.set(0, 0, 0);
+  const center = getHelixCenter();
+  controls.target.copy(center);
+  controls.cursor.copy(center);
+  viewPan.set(0, 0, 0);
   controls.update();
 }
 
@@ -703,6 +1188,73 @@ function updateOxalateFromTraj(segments) {
   oxalateLines.geometry.attributes.position.needsUpdate = true;
 }
 
+function trajDisplacementStats(frames) {
+  if (!frames?.length) return 0;
+  const f0 = frames[0].ca;
+  let maxDisp = 0;
+  for (const f of frames) {
+    const n = Math.min(f0.x.length, f.ca.x.length);
+    for (let i = 0; i < n; i++) {
+      const dx = f.ca.x[i] - f0.x[i];
+      const dy = f.ca.y[i] - f0.y[i];
+      const dz = f.ca.z[i] - f0.z[i];
+      maxDisp = Math.max(maxDisp, Math.hypot(dx, dy, dz));
+    }
+  }
+  return maxDisp;
+}
+
+function captureTrajOxalate(segments) {
+  if (!segments?.length) return null;
+  const pos = new Float32Array(segments.length * 6);
+  segments.forEach((seg, i) => {
+    pos[i * 6] = seg[0][0];
+    pos[i * 6 + 1] = seg[0][1];
+    pos[i * 6 + 2] = seg[0][2];
+    pos[i * 6 + 3] = seg[1][0];
+    pos[i * 6 + 4] = seg[1][1];
+    pos[i * 6 + 5] = seg[1][2];
+  });
+  return pos;
+}
+
+function applyTrajOxalate(segments) {
+  if (!oxalateLines || !oxalateRest) return;
+  const pos = oxalateLines.geometry.attributes.position.array;
+  const nSeg = pos.length / 6;
+  if (segments?.length && trajFrame0Oxalate && trajAmp !== 1) {
+    const n = Math.min(segments.length, nSeg, trajFrame0Oxalate.length / 6);
+    for (let i = 0; i < n; i++) {
+      const seg = segments[i];
+      for (let c = 0; c < 2; c++) {
+        for (let k = 0; k < 3; k++) {
+          const ri = i * 6 + c * 3 + k;
+          const base = trajFrame0Oxalate[ri];
+          const target = seg[c][k];
+          pos[ri] = base + trajAmp * (target - base);
+        }
+      }
+    }
+  } else {
+    updateOxalateFromTraj(segments);
+    return;
+  }
+  oxalateLines.geometry.attributes.position.needsUpdate = true;
+}
+
+function trajStatusText(url) {
+  if (!trajData) return "No trajectory loaded.";
+  const name = url.split("/").pop();
+  const n = trajData.frames.length;
+  let line = `${n} frames · ${name}`;
+  if (trajMaxDisp < 0.5) {
+    line += ` · FIRE motion ${trajMaxDisp.toFixed(2)} Å (×${trajAmp.toFixed(0)} for playback)`;
+  } else {
+    line += ` · max Ca move ${trajMaxDisp.toFixed(1)} Å`;
+  }
+  return line;
+}
+
 function loadGeometry(name) {
   if (!MODELS[name]) return;
   stopTraj();
@@ -721,6 +1273,7 @@ function loadGeometry(name) {
   clearGroup(hotspotGroup);
   clearGroup(guideGroup);
   hotspotMesh = null;
+  hotspotGlowMesh = null;
   hotspotIndices = [];
   hotspotClusterMeshes = [];
   buildDNA();
@@ -730,32 +1283,39 @@ function loadGeometry(name) {
   buildHotspotMarkers();
   rebuildMineral();
   const geomIds = {
-    sphere: "geom-sphere",
-    slab: "geom-slab",
-    allp: "geom-allp",
-    local: "geom-local",
-    altp: "geom-altp",
-    gel: "geom-gel",
-    shell15: "geom-shell15",
-    gel_altp_geom: "geom-gel-altp",
     templating_gel: "geom-templating",
+    templating_gel_thick: "geom-templating-thick",
     templating_nodna: "geom-nodna",
     shell_lattice: "geom-shell-lattice",
+    slab: "geom-slab",
   };
   Object.entries(geomIds).forEach(([g, id]) => {
     const el = $(id);
     if (el) el.classList.toggle("active", name === g);
   });
   syncLabels();
-  applyUi();
-  setView("side");
-  if (name === "shell_lattice" || name === "shell_lattice_seeded") setNucleationView();
-  else loadTrajectory(MODEL.traj);
+  if (
+    name === "templating_gel" ||
+    name === "templating_gel_thick" ||
+    name === "templating_nodna"
+  ) {
+    setCoatView();
+  } else if (name === "shell_lattice") {
+    setNucleationView();
+  } else {
+    applyUi();
+    setView("side");
+  }
+  loadTrajectory(MODEL.traj);
 }
 
 async function loadTrajectory(url) {
   trajData = null;
   trajFrame = 0;
+  trajFrame0Ca = null;
+  trajFrame0Oxalate = null;
+  trajAmp = 1;
+  trajMaxDisp = 0;
   const section = $("traj-section");
   const status = $("traj-status");
   if (!url) {
@@ -774,13 +1334,20 @@ async function loadTrajectory(url) {
       slider.max = String(maxF);
       slider.value = 0;
     }
-    if (section) section.hidden = false;
-    if (status) {
-      status.textContent = `${trajData.frames.length} frames · ${url.split("/").pop()} · Ca move; symmetry envelopes stay on OMM frame`;
+    const f0 = trajData.frames[0]?.ca;
+    if (f0?.x?.length) {
+      trajFrame0Ca = { x: [...f0.x], y: [...f0.y], z: [...f0.z] };
+      trajFrame0Oxalate = captureTrajOxalate(trajData.frames[0].oxalate);
+      trajMaxDisp = trajDisplacementStats(trajData.frames);
+      if (trajMaxDisp < 0.5) {
+        trajAmp = Math.min(40, 1.2 / Math.max(trajMaxDisp, 1e-4));
+      }
     }
+    if (section) section.hidden = false;
+    if (status) status.textContent = trajStatusText(url);
     applyTrajFrame(0);
   } catch (err) {
-    if (section) section.hidden = true;
+    if (section) section.hidden = false;
     if (status) status.textContent = `Trajectory unavailable: ${err.message}`;
   }
 }
@@ -790,12 +1357,18 @@ function applyTrajFrame(idx) {
   const f = trajData.frames[idx];
   const n = Math.min(nCa, f.ca.x.length);
   for (let i = 0; i < n; i++) {
-    ca.x[i] = f.ca.x[i];
-    ca.y[i] = f.ca.y[i];
-    ca.z[i] = f.ca.z[i];
+    if (trajFrame0Ca) {
+      ca.x[i] = trajFrame0Ca.x[i] + trajAmp * (f.ca.x[i] - trajFrame0Ca.x[i]);
+      ca.y[i] = trajFrame0Ca.y[i] + trajAmp * (f.ca.y[i] - trajFrame0Ca.y[i]);
+      ca.z[i] = trajFrame0Ca.z[i] + trajAmp * (f.ca.z[i] - trajFrame0Ca.z[i]);
+    } else {
+      ca.x[i] = f.ca.x[i];
+      ca.y[i] = f.ca.y[i];
+      ca.z[i] = f.ca.z[i];
+    }
   }
   if (f.oxalate) {
-    updateOxalateFromTraj(f.oxalate);
+    applyTrajOxalate(f.oxalate);
   } else {
     updateOxalateFromTraj(null);
   }
@@ -808,8 +1381,6 @@ function applyTrajFrame(idx) {
     const e = f.energy != null ? `  E=${f.energy.toExponential(2)}` : "";
     label.textContent = `${f.step}${phase}${e}`;
   }
-  rebuildMineral();
-  updateHotspotMarkers();
   applyUi();
 }
 
@@ -876,11 +1447,14 @@ function syncHotspotInfo() {
   const whereEl = $("where-answers");
   const w = MODEL.nucleationWhere;
   if (whereEl) {
+    const geom = MODEL.geometry || MODEL.source || "";
+    const header = geom ? `[${geom}] ` : "";
     if (w && w.answers && w.answers.length) {
-      whereEl.textContent = w.answers.map((a, i) => `${i + 1}) ${a}`).join("\n\n");
+      whereEl.textContent = header + w.answers.map((a, i) => `${i + 1}) ${a}`).join("\n\n");
     } else {
       whereEl.textContent =
-        "Hotspot rate vs phosphate distance, radius, and helix — not occupancy blobs.";
+        header +
+        "Nucleation hotspots vs local COM symmetry — not occupancy blobs.";
     }
   }
   if (!el) return;
@@ -892,12 +1466,20 @@ function syncHotspotInfo() {
     return;
   }
   const lines = [
-    `${n} hotspot Ca (dots colored by d(P): orange = near P, cyan = far).`,
+    `${n} P-tethered hotspot Ca in ${MODEL.counts?.nucleationClusters ?? "?"} clusters (d(P)<12 Å; bright gold by distance from P).`,
     w
-      ? `median d(P) ${w.medianDpHot} Å vs ${w.medianDpAll} Å for all Ca.`
+      ? w.medianPairCorrHot != null
+        ? `median pair-corr ${w.medianPairCorrHot} (hotspots) vs ${w.medianPairCorrAll} (all); d(P) ${w.medianDpHot} vs ${w.medianDpAll} Å.`
+        : `median d(P) ${w.medianDpHot} Å vs ${w.medianDpAll} Å for all Ca.`
       : "",
-    nIn != null ? `${nIn} Ca packed inside the phosphate cylinder (grooves) — that is the “inside DNA” cloud, not nucleation.` : "",
+    nIn != null ? `${nIn} Ca packed inside the phosphate cylinder (grooves) — occupancy cloud, not nucleation.` : "",
   ].filter(Boolean);
+  const nShell = MODEL.counts?.nucleationHotspotsShell || 0;
+  if (nShell) {
+    lines.push(
+      `${nShell} outer-coat Ca with COM-like neighbors (d(P)≥12 Å) are not shown — thick gel packing, not helix-tethered nucleation.`
+    );
+  }
   el.textContent = lines.join("\n");
 }
 
@@ -923,6 +1505,12 @@ function applyUi() {
     if (obj.name === "seed") obj.visible = $("dna-seeds").checked;
     if (obj.name === "oxalate") obj.visible = $("oxalate").checked;
   });
+  let nWaterShown = 0;
+  if (waterMesh) {
+    const wcb = $("water");
+    waterMesh.visible = !wcb || wcb.checked;
+    nWaterShown = applyWater(rmax, slab);
+  }
 
   envGroup.visible = $("envelopes").checked;
   const op = Number($("env-opacity").value) / 100;
@@ -934,8 +1522,9 @@ function applyUi() {
     else cb = $(`ph-${ph}`);
     const on = cb ? cb.checked : true;
     mesh.visible = on;
-    if (ph === "nucleation") mesh.material.opacity = op * 0.45;
-    else if (ph === "shell") mesh.material.opacity = op * 0.65;
+    if (ph === "nucleation") {
+      mesh.material.opacity = mesh.userData.glow ? op * 0.58 : op * 0.42;
+    } else if (ph === "shell") mesh.material.opacity = op * 0.65;
     else mesh.material.opacity = op;
   });
   const hotEl = $("nucleation-hotspots");
@@ -950,9 +1539,13 @@ function applyUi() {
   const autoRotate = $("auto-rotate");
   controls.autoRotate = !!(autoRotate && autoRotate.checked);
   drawUnroll(dmin, dmax, rmax, slab);
+  updateColorLegend(colorMode);
 
   const { shown, shownPh } = applyCa(style, colorMode, phaseOn, dmin, dmax, rmax, slab);
-  $("visible-count").textContent = `Showing ${shown} of ${nCa} Ca  ·  ${shownPh[0]} / ${shownPh[1]} / ${shownPh[2]}`;
+  const nWater = MODEL.water?.x?.length || 0;
+  $("visible-count").textContent = `Showing ${shown} of ${nCa} Ca  ·  ${shownPh[0]} / ${shownPh[1]} / ${shownPh[2]}${
+    nWater ? `  ·  ${nWaterShown} / ${nWater} water O` : ""
+  }`;
 }
 
 function exportSlug() {
@@ -972,6 +1565,7 @@ function captureFrame(scale, mime = "image/png", quality) {
   const prevPR = renderer.getPixelRatio();
 
   controls.update();
+  lockOrbitToHelixCenter();
   renderer.setPixelRatio(1);
   renderer.setSize(outW, outH, false);
   camera.aspect = outW / outH;
@@ -984,6 +1578,8 @@ function captureFrame(scale, mime = "image/png", quality) {
   renderer.setSize(prevSize.x, prevSize.y, false);
   camera.aspect = cssW / Math.max(cssH, 1);
   camera.updateProjectionMatrix();
+  controls.update();
+  lockOrbitToHelixCenter();
   renderer.render(scene, camera);
 
   return { dataUrl, width: outW, height: outH };
@@ -1099,6 +1695,29 @@ async function exportPDF(scale = 4) {
   }
 }
 
+function setCoatView() {
+  $("dmin").value = "0";
+  $("dmax").value = "40";
+  $("rmax").value = "50";
+  $("slab").value = "50";
+  $("ph-amorphous").checked = true;
+  $("ph-intermediate").checked = true;
+  $("ph-crystalline").checked = true;
+  if ($("ph-shell")) $("ph-shell").checked = false;
+  if ($("ph-nucleation")) $("ph-nucleation").checked = false;
+  $("envelopes").checked = false;
+  if ($("nucleation-hotspots")) $("nucleation-hotspots").checked = true;
+  if ($("radial-guides")) $("radial-guides").checked = false;
+  if ($("oxalate")) $("oxalate").checked = true;
+  if ($("water")) $("water").checked = true;
+  const sph = document.querySelector('input[name="style"][value="spheres"]');
+  if (sph) sph.checked = true;
+  const dist = document.querySelector('input[name="color"][value="distance"]');
+  if (dist) dist.checked = true;
+  applyUi();
+  setView("side");
+}
+
 function setNucleationView() {
   $("dmin").value = "0";
   $("dmax").value = "28";
@@ -1110,8 +1729,9 @@ function setNucleationView() {
   if ($("ph-nucleation")) $("ph-nucleation").checked = false;
   $("envelopes").checked = false;
   if ($("nucleation-hotspots")) $("nucleation-hotspots").checked = true;
-  if ($("radial-guides")) $("radial-guides").checked = true;
+  if ($("radial-guides")) $("radial-guides").checked = false;
   if ($("oxalate")) $("oxalate").checked = false;
+  if ($("water")) $("water").checked = false;
   $("env-opacity").value = "18";
   const dist = document.querySelector('input[name="color"][value="distance"]');
   if (dist) dist.checked = true;
@@ -1119,7 +1739,6 @@ function setNucleationView() {
   if (pts) pts.checked = true;
   applyUi();
   setView("end");
-  if (MODEL.traj) loadTrajectory(MODEL.traj);
 }
 
 function ui() {
@@ -1133,21 +1752,13 @@ function ui() {
   $("view-seed").addEventListener("click", () => setView("seed"));
   const vn = $("view-nucleation");
   if (vn) vn.addEventListener("click", setNucleationView);
-  $("geom-sphere").addEventListener("click", () => loadGeometry("sphere"));
-  $("geom-slab").addEventListener("click", () => loadGeometry("slab"));
-  $("geom-allp").addEventListener("click", () => loadGeometry("allp"));
-  $("geom-local").addEventListener("click", () => loadGeometry("local"));
-  $("geom-altp").addEventListener("click", () => loadGeometry("altp"));
-  $("geom-gel").addEventListener("click", () => loadGeometry("gel"));
-  $("geom-shell15").addEventListener("click", () => loadGeometry("shell15"));
-  $("geom-gel-altp").addEventListener("click", () => loadGeometry("gel_altp_geom"));
-  if ($("geom-templating")) {
-    $("geom-templating").addEventListener("click", () => loadGeometry("templating_gel"));
-  }
-  if ($("geom-nodna")) {
-    $("geom-nodna").addEventListener("click", () => loadGeometry("templating_nodna"));
-  }
+  $("geom-templating").addEventListener("click", () => loadGeometry("templating_gel"));
+  $("geom-templating-thick").addEventListener("click", () =>
+    loadGeometry("templating_gel_thick")
+  );
+  $("geom-nodna").addEventListener("click", () => loadGeometry("templating_nodna"));
   $("geom-shell-lattice").addEventListener("click", () => loadGeometry("shell_lattice"));
+  $("geom-slab").addEventListener("click", () => loadGeometry("slab"));
   $("traj-step").addEventListener("input", () => {
     stopTraj();
     applyTrajFrame(Number($("traj-step").value));
@@ -1191,7 +1802,9 @@ resize();
 window.addEventListener("resize", resize);
 
 function tick() {
+  lockOrbitToHelixCenter();
   controls.update();
+  lockOrbitToHelixCenter();
   updateScaleBar();
   renderer.render(scene, camera);
   requestAnimationFrame(tick);

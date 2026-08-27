@@ -2,7 +2,7 @@
 """
 Phosphate-templating experiment (FIRE, not MD):
 
-  1. Gel at every P + disordered second-row CaOx + extra waters
+  1. Gel at every P + disordered second+third-row CaOx + extra waters
      (strand Ca-Ca may be 3.84 A; not a 30 A coat)
   2. Honest FIRE (--no-com-targets, gel unfrozen)
   3. Density-matched no-DNA blob + honest FIRE

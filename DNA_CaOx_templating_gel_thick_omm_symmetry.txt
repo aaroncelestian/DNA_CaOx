@@ -1,13 +1,13 @@
-Symmetry + crystallinity map — DNA_CaOx_templating_gel_omm.pdb
+Symmetry + crystallinity map — DNA_CaOx_templating_gel_thick_omm.pdb
 ==============================================================
-WHW Ca sites: 220
-DNA-bound seeds: 44 (from DNA_CaOx_templating_gel_seeds.pdb)
+WHW Ca sites: 396
+DNA-bound seeds: 44 (from DNA_CaOx_templating_gel_thick_seeds.pdb)
 Reference COM cell: a=6.29  c=10.116  beta=109.46
 Strict COM net: map tol 0.25 Å; |v|-a < 0.20; |v|-c < 0.25; |v|-3.84 < 0.15; β within 10° of 70.5°.
 Crystalline: strongest COM-net pocket (a + 3.84 Å, score ≥ 0.22). Intermediate: nucleation site / partial COM order (score ≥ 0.10 or weak axis ≥ 0.05).
 
 Spatial domains (Ca clusters): 1
-  domain 1: 220 Ca  cryst_idx=0.00  a=0.00 c=0.01 384=0.00
+  domain 1: 396 Ca  cryst_idx=0.00  a=0.00 c=0.00 384=0.00
 
 Strand / phosphate-layer order (hypothesis test)
   Phosphate-bound Ca (d(P)<8 Å): 80 / 44 P
@@ -25,8 +25,8 @@ Strand / phosphate-layer order (hypothesis test)
      8.411
      6.954
      8.535
-     8.051
-     6.941
+     8.050
+     6.942
      9.944
      8.815
      6.829
@@ -39,7 +39,7 @@ Strand / phosphate-layer order (hypothesis test)
      7.429
      8.248
      8.017
-     7.144
+     7.145
      7.418
      9.466
      8.420
@@ -59,25 +59,23 @@ Strand / phosphate-layer order (hypothesis test)
      7.445
      8.259
 
-Nucleation hotspots (COM pair-corr clusters, r_axis ≥ 8.7 Å, interior core only): 51 Ca in 12 clusters (51 within 12 Å of P).
+Nucleation hotspots (COM pair-corr clusters, r_axis ≥ 8.7 Å, interior core only): 49 Ca in 10 clusters (49 within 12 Å of P).
   cluster 1: n=3  d_P≈6.7 Å  pair-corr=0.44
-  cluster 2: n=5  d_P≈8.2 Å  pair-corr=0.69
-  cluster 3: n=5  d_P≈7.1 Å  pair-corr=0.49
-  cluster 4: n=3  d_P≈5.8 Å  pair-corr=0.44
-  cluster 5: n=3  d_P≈5.8 Å  pair-corr=0.31
-  cluster 6: n=3  d_P≈6.7 Å  pair-corr=0.52
-  cluster 7: n=7  d_P≈6.6 Å  pair-corr=0.32
-  cluster 8: n=7  d_P≈5.2 Å  pair-corr=0.52
-  cluster 9: n=8  d_P≈7.3 Å  pair-corr=0.46
-  cluster 10: n=3  d_P≈3.8 Å  pair-corr=0.46
-  cluster 11: n=3  d_P≈8.9 Å  pair-corr=0.28
-  cluster 12: n=3  d_P≈4.6 Å  pair-corr=0.60
+  cluster 2: n=5  d_P≈10.0 Å  pair-corr=0.64
+  cluster 3: n=6  d_P≈6.9 Å  pair-corr=0.44
+  cluster 4: n=3  d_P≈5.8 Å  pair-corr=0.31
+  cluster 5: n=8  d_P≈6.6 Å  pair-corr=0.32
+  cluster 6: n=7  d_P≈5.2 Å  pair-corr=0.52
+  cluster 7: n=8  d_P≈9.6 Å  pair-corr=0.53
+  cluster 8: n=3  d_P≈3.8 Å  pair-corr=0.46
+  cluster 9: n=3  d_P≈8.9 Å  pair-corr=0.38
+  cluster 10: n=3  d_P≈4.6 Å  pair-corr=0.60
 
-  intermediate  : n=  21  d_P median=2.8 Å  score median=0.044
+  intermediate  : n=  25  d_P median=7.2 Å  score median=0.044
 
-  amorphous     : n= 199  d_P median=10.1 Å  score median=0.000
+  amorphous     : n= 371  d_P median=15.3 Å  score median=0.000
 
 Heatmaps written to /Users/aaroncelestian/Library/Mobile Documents/com~apple~CloudDocs/HTML/DNA_CaOx/figures/crystallinity/
-Per-Ca metrics: /Users/aaroncelestian/Library/Mobile Documents/com~apple~CloudDocs/HTML/DNA_CaOx/figures/crystallinity/DNA_CaOx_templating_gel_omm_ca_metrics.csv
+Per-Ca metrics: /Users/aaroncelestian/Library/Mobile Documents/com~apple~CloudDocs/HTML/DNA_CaOx/figures/crystallinity/DNA_CaOx_templating_gel_thick_omm_ca_metrics.csv
 
 Growth-radius sweep skipped (no DNA layer, or --skip-sweep).

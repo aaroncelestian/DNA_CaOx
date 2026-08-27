@@ -18,22 +18,12 @@
         <section>
           <h2>Cut</h2>
           <div class="row">
-            <button type="button" id="geom-altp">Alt P 30Å</button>
-            <button type="button" id="geom-local">Local 20Å</button>
-          </div>
-          <div class="row" style="margin-top:6px">
-            <button type="button" id="geom-gel">Gel 44P</button>
-            <button type="button" id="geom-shell15">Gel+15Å</button>
-            <button type="button" id="geom-gel-altp">Gel alt-P</button>
-            <button type="button" id="geom-shell-lattice" class="active">Saturated shell</button>
-          </div>
-          <div class="row" style="margin-top:6px">
             <button type="button" id="geom-templating">Templating gel</button>
+            <button type="button" id="geom-templating-thick">Thick gel (5-row)</button>
             <button type="button" id="geom-nodna">No-DNA blob</button>
           </div>
           <div class="row" style="margin-top:6px">
-            <button type="button" id="geom-allp">All P 30Å</button>
-            <button type="button" id="geom-sphere">4-seed</button>
+            <button type="button" id="geom-shell-lattice" class="active">Saturated shell</button>
             <button type="button" id="geom-slab">Slab</button>
           </div>
           <p class="hint" id="cut-label"></p>
@@ -46,17 +36,19 @@
           <label><input type="checkbox" id="dna-p" checked /> Phosphates</label>
           <label><input type="checkbox" id="dna-seeds" checked /> COM seeds</label>
           <label><input type="checkbox" id="oxalate" checked /> Oxalate (C₂O₄)</label>
+          <label><input type="checkbox" id="water" checked /> Water O</label>
         </section>
 
         <section>
-          <h2>Where COM order sits</h2>
-          <p class="hint" id="where-answers">Hotspot rate vs phosphate distance, radius, and helix — not occupancy blobs.</p>
+          <h2>Nucleation &amp; symmetry</h2>
+          <p class="hint" id="where-answers">Where incipient COM order nucleates — local pair-corr clusters, not occupancy blobs.</p>
           <canvas id="unroll" width="248" height="168" aria-label="Helical unroll of phosphates and hotspot Ca"></canvas>
-          <p class="hint">Unroll: brown = P, dots = hotspots colored by d(P). If nucleation followed the backbone, yellow would track the brown helix.</p>
+          <p class="hint" id="unroll-caption">Unroll updates when you change model or filters.</p>
         </section>
 
         <section>
           <h2>Mineral phase</h2>
+          <label><input type="checkbox" id="envelopes" /> Phase envelopes</label>
           <label class="swatch shell"><input type="checkbox" id="ph-shell" /> All-Ca occupancy envelope</label>
           <label class="swatch amorphous"><input type="checkbox" id="ph-amorphous" /> Amorphous <span id="n-amorphous"></span></label>
           <label class="swatch intermediate"><input type="checkbox" id="ph-intermediate" /> Nucleation (phase) <span id="n-intermediate"></span></label>
@@ -71,9 +63,8 @@
           <label><input type="radio" name="style" value="cloud" checked /> Distance clouds</label>
           <label><input type="radio" name="style" value="spheres" /> Ca spheres</label>
           <label><input type="radio" name="style" value="points" /> Ca points</label>
-          <label><input type="checkbox" id="envelopes" /> Phase envelopes</label>
-          <label><input type="checkbox" id="nucleation-hotspots" checked /> Hotspot Ca (colored by d(P))</label>
-          <label><input type="checkbox" id="radial-guides" checked /> Phosphate + COM-a cylinders</label>
+          <label class="checkbox-row"><input type="checkbox" id="nucleation-hotspots" checked /> Hotspot Ca (≤12 Å from P, colored by d(P))</label>
+          <label><input type="checkbox" id="radial-guides" /> Phosphate + COM-a cylinders</label>
           <label><input type="checkbox" id="shells" /> Cut guides</label>
           <label>Envelope opacity
             <input type="range" id="env-opacity" min="4" max="55" value="18" />
@@ -147,16 +138,15 @@
         <p class="hint">
           Start from the project folder with <code>python3 -m http.server 8765</code>
           and open <code>http://localhost:8765/viewer/</code>.
-          Drag to rotate, scroll to zoom, right-drag to pan.
-          Local 20Å is Ca+oxalate at every phosphate (~2 c-steps), then DLS.
+          Drag to rotate (around DNA helix center), scroll to zoom.
+          Pan: two-finger scroll/drag, two-finger click+drag, Space+drag, right-drag, Ctrl/Cmd+drag. Pinch to zoom.
         </p>
         <p class="hint" id="visible-count"></p>
       </aside>
       <div id="scale"><i></i><span>20 Å</span></div>
-      <div id="legend">
-        <span class="near">near P</span>
-        <span class="far">far from P</span>
-        <span class="nucleation">hotspots</span>
+      <div id="color-legend" aria-label="Ca color legend" hidden>
+        <div class="color-legend-title"></div>
+        <div class="color-legend-body"></div>
       </div>
     </div>
     <script>

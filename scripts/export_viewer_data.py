@@ -2,12 +2,13 @@
 """
 Pack the DLS growth model into a compact helix-frame JSON for the 3D viewer.
 
-DNA is reduced to backbone traces (P, C1', glycosidic N). CaOx is reduced to
-Ca sites plus a smoothed occupancy envelope per phase — no oxalate/water atoms.
+DNA is reduced to backbone traces (P, C1', glycosidic N). CaOx is Ca sites,
+oxalate C2O4 sticks, water oxygens (OW/HOH), and a smoothed occupancy envelope.
 """
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import argparse
 import csv
 import json
@@ -28,6 +29,7 @@ from oxalate_sticks import (  # noqa: E402
 )
 from find_symmetry import (  # noqa: E402
     COM_A,
+    DNA_HOTSPOT_DP_MAX,
     HOTSPOT_CLUSTER_CUT,
     cluster_local,
     helix_axis_radius,
@@ -45,104 +47,31 @@ SEED_PDB = ROOT / "DNA_CaOx_growth.pdb"
 OUT = ROOT / "viewer" / "model-data.js"
 DEFAULT_GEOM = "shell_lattice"
 
-# Sphere = union of 30 Å balls around the four seed Ca (1605 Ca, more crystal).
-# The spherical DLS PDB was overwritten by the cylinder; coordinates live in
-# the relaxed file. Phases are the strict COM-net labels from that DLS run.
-# Slab = DNA-length cylinder (2468 Ca, almost all intermediate).
-# AllP = 22 phosphate seeds, 30 Å (end-cap crystal is a merge artifact).
-# Local = 22 phosphate seeds, 20 Å shells (~2 c-steps), oxalate/Ca DLS.
+# Viewer CUT options (export only these into model-data.js).
 GEOMETRIES = {
-    "sphere": {
-        "pdb": ROOT / "DNA_CaOx_growth_whewellite30A_relaxed.pdb",
-        "csv": ROOT
-        / "figures/crystallinity/DNA_CaOx_growth_whewellite30A_dls_ca_metrics.csv",
-        "title": "Spherical 30 Å (4 seed balloons)",
-        "cut": "union of 30 Å spheres around the four COM seed Ca",
-        "seedRadius": 30.0,
-        "cutKind": "spheres",
-    },
-    "slab": {
-        "pdb": ROOT / "DNA_CaOx_growth_whewellite30A_dls.pdb",
-        "csv": ROOT
-        / "figures/crystallinity/DNA_CaOx_growth_whewellite30A_slab_dls_ca_metrics.csv",
-        "title": "Cylinder (DNA-length coating)",
-        "cut": "cylinder along DNA, 30 Å from the duplex envelope",
-        "seedRadius": 30.0,
-        "cutKind": "cylinder",
-    },
-    "allp": {
-        "pdb": ROOT / "DNA_CaOx_growth_whewellite30A_allP.pdb",
-        "csv": ROOT
-        / "figures/crystallinity/DNA_CaOx_growth_whewellite30A_allP_ca_metrics.csv",
-        "seeds": ROOT / "DNA_CaOx_growth_allP_seeds.pdb",
-        "title": "All phosphates (22 seeds, 30 Å)",
-        "cut": "one COM seed at every P on both strands; union of 30 Å spheres",
-        "seedRadius": 30.0,
-        "cutKind": "spheres",
-    },
-    "local": {
-        "pdb": ROOT / "DNA_CaOx_growth_whewellite20A_allP_dls.pdb",
-        "csv": ROOT
-        / "figures/crystallinity/DNA_CaOx_growth_whewellite20A_allP_dls_ca_metrics.csv",
-        "seeds": ROOT / "DNA_CaOx_growth_allP_seeds.pdb",
-        "title": "Local wrap (22 seeds, 20 Å, DLS)",
-        "cut": "COM at every P; 20 Å spheres (~2 c-steps), then oxalate/Ca DLS",
-        "seedRadius": 20.0,
-        "cutKind": "spheres",
-    },
-    "altp": {
-        "pdb": ROOT / "DNA_CaOx_growth_whewellite30A_altP_omm.pdb",
-        "csv": ROOT
-        / "figures/crystallinity/DNA_CaOx_growth_whewellite30A_altP_omm_ca_metrics.csv",
-        "seeds": ROOT / "DNA_CaOx_growth_altP_seeds.pdb",
-        "title": "Every other P (12 seeds, 30 Å, FIRE/OMM)",
-        "cut": "COM at every other P on both strands; 30 Å spheres, then rigid-oxalate FIRE + OpenMM",
-        "seedRadius": 30.0,
-        "cutKind": "spheres",
-        "oxalate": True,
-    },
-    "gel": {
-        "pdb": ROOT / "DNA_CaOx_gel_first_omm.pdb",
-        "csv": ROOT / "figures/crystallinity/DNA_CaOx_gel_first_omm_ca_metrics.csv",
-        "seeds": ROOT / "DNA_CaOx_gel_first_seeds.pdb",
-        "title": "Gel-first (44 P, FIRE/OMM)",
-        "cut": "BV OP chelation at every phosphate; random oxalate orientations; FIRE+OpenMM, no COM Ca–Ca targets",
-        "seedRadius": 12.0,
-        "cutKind": "spheres",
-        "oxalate": True,
-    },
-    "shell15": {
-        "pdb": ROOT / "DNA_CaOx_gel_first_shell15A_omm.pdb",
-        "csv": ROOT
-        / "figures/crystallinity/DNA_CaOx_gel_first_shell15A_omm_ca_metrics.csv",
-        "seeds": ROOT / "DNA_CaOx_gel_first_seeds.pdb",
-        "title": "Gel + 15 Å shell (FIRE/OMM)",
-        "cut": "Frozen gel (44 P) + random CaOx/water 2.25–15 Å from gel; shell relaxed, no COM targets",
-        "seedRadius": 15.0,
-        "cutKind": "spheres",
-        "oxalate": True,
-    },
-    "gel_altp_geom": {
-        "pdb": ROOT / "DNA_CaOx_gel_altP_geom_omm.pdb",
-        "csv": ROOT / "figures/crystallinity/DNA_CaOx_gel_altP_geom_omm_ca_metrics.csv",
-        "seeds": ROOT / "DNA_CaOx_gel_altP_geom_seeds.pdb",
-        "title": "Gel alt-P + geometry (22 P, honest FIRE)",
-        "cut": "Every other P; BV Ca; geometry-oriented oxalate; FIRE+OpenMM, no COM targets",
-        "seedRadius": 12.0,
-        "cutKind": "spheres",
-        "oxalate": True,
-        "traj": "trajectories/DNA_CaOx_gel_altP_geom_fire.trj.json",
-    },
     "templating_gel": {
         "pdb": ROOT / "DNA_CaOx_templating_gel_omm.pdb",
         "csv": ROOT
         / "figures/crystallinity/DNA_CaOx_templating_gel_omm_ca_metrics.csv",
         "seeds": ROOT / "DNA_CaOx_templating_gel_seeds.pdb",
         "title": "Templating gel (all P, honest FIRE)",
-        "cut": "CaOx at every P plus a disordered second row and extra waters; FIRE with no COM targets, gel unfrozen",
-        "seedRadius": 12.0,
+        "cut": "220 CaOx (44 at P + 88 second-row + 88 third-row) and extra waters; FIRE with no COM targets, gel unfrozen",
+        "seedRadius": 24.0,
         "cutKind": "spheres",
         "oxalate": True,
+        "traj": "trajectories/DNA_CaOx_templating_gel_fire.trj.json",
+    },
+    "templating_gel_thick": {
+        "pdb": ROOT / "DNA_CaOx_templating_gel_thick_omm.pdb",
+        "csv": ROOT
+        / "figures/crystallinity/DNA_CaOx_templating_gel_thick_omm_ca_metrics.csv",
+        "seeds": ROOT / "DNA_CaOx_templating_gel_thick_seeds.pdb",
+        "title": "Templating gel thick (5-row coat)",
+        "cut": "396 CaOx (44 at P + 352 coat) and ~800 extra waters; honest FIRE, no COM targets",
+        "seedRadius": 30.0,
+        "cutKind": "spheres",
+        "oxalate": True,
+        "traj": "trajectories/DNA_CaOx_templating_gel_thick_fire.trj.json",
     },
     "templating_nodna": {
         "pdb": ROOT / "DNA_CaOx_templating_gel_nodna_omm.pdb",
@@ -151,9 +80,10 @@ GEOMETRIES = {
         "seeds": ROOT / "DNA_CaOx_templating_gel_seeds.pdb",
         "title": "No-DNA CaOx blob (honest FIRE)",
         "cut": "Same unit count as templating gel, random sphere, no DNA, no COM targets",
-        "seedRadius": 18.0,
+        "seedRadius": 24.0,
         "cutKind": "spheres",
         "oxalate": True,
+        "traj": "trajectories/DNA_CaOx_templating_gel_nodna_fire.trj.json",
     },
     "shell_lattice": {
         "pdb": ROOT / "DNA_CaOx_gel_altP_geom_shell_lattice_omm.pdb",
@@ -167,17 +97,14 @@ GEOMETRIES = {
         "oxalate": True,
         "traj": "trajectories/DNA_CaOx_gel_altP_geom_shell_lattice_fire.trj.json",
     },
-    "shell_lattice_seeded": {
-        "pdb": ROOT / "DNA_CaOx_gel_altP_geom_shell_lattice_seeded_omm.pdb",
+    "slab": {
+        "pdb": ROOT / "DNA_CaOx_growth_whewellite30A_dls.pdb",
         "csv": ROOT
-        / "figures/crystallinity/DNA_CaOx_gel_altP_geom_shell_lattice_seeded_omm_ca_metrics.csv",
-        "seeds": ROOT / "DNA_CaOx_gel_altP_geom_seeds.pdb",
-        "title": "Gel + lattice shell + whewellite seed",
-        "cut": "Frozen gel; lattice shell 6–28 Å; authentic whewellite patch at 22–28 Å",
-        "seedRadius": 28.0,
-        "cutKind": "spheres",
-        "oxalate": True,
-        "traj": "trajectories/DNA_CaOx_gel_altP_geom_shell_lattice_seeded_fire.trj.json",
+        / "figures/crystallinity/DNA_CaOx_growth_whewellite30A_slab_dls_ca_metrics.csv",
+        "title": "Cylinder (DNA-length coating)",
+        "cut": "cylinder along DNA, 30 Å from the duplex envelope",
+        "seedRadius": 30.0,
+        "cutKind": "cylinder",
     },
 }
 
@@ -354,52 +281,77 @@ def nucleation_where_summary(
     phi: np.ndarray,
     n_p: int,
     n_p_with_hot: int,
+    pair_corr: np.ndarray,
+    score: np.ndarray,
+    phase: np.ndarray,
+    hit_384: np.ndarray,
+    hit_629: np.ndarray,
+    n_clusters: int,
 ) -> dict:
-    """Answer: backbone vs radial room vs helical nodes (hotspot *rate*, not raw count)."""
-    near = (d_p < 8.0)
+    """Summarize nucleation sites and local COM symmetry — not COM lattice positioning."""
+    near = d_p < 8.0
     room = (d_p >= 12.0) & (d_p < 20.0)
     far = d_p >= 20.0
     inside = r_axis < (r_phosphate - 0.35)
     dr = r_axis - r_phosphate
     dp_bins = _bin_hot_frac(d_p, hotspot, np.arange(0.0, 32.1, 2.0))
     rad_bins = _bin_hot_frac(dr, hotspot, np.arange(-6.0, 24.1, 2.0))
-    peak = max((b for b in dp_bins if b["n"] >= 20), key=lambda b: b["frac"], default=None)
-    peak_rad = max((b for b in rad_bins if b["n"] >= 20 and b["lo"] >= 0), key=lambda b: b["frac"], default=None)
+    n_hot = int(hotspot.sum())
+    inter = phase == PHASE_INDEX["intermediate"]
 
     def pack(mask: np.ndarray) -> dict:
         n = int(mask.sum())
-        n_hot = int((mask & hotspot).sum())
+        n_hot_m = int((mask & hotspot).sum())
         return {
             "n": n,
-            "nHot": n_hot,
-            "frac": round(n_hot / n, 3) if n else 0.0,
+            "nHot": n_hot_m,
+            "frac": round(n_hot_m / n, 3) if n else 0.0,
             "medianDp": round(float(np.median(d_p[mask])), 1) if n else None,
         }
 
+    def med(arr: np.ndarray, mask: np.ndarray) -> float | None:
+        sub = arr[mask]
+        return round(float(np.median(sub)), 2) if len(sub) else None
+
+    hot_pc = med(pair_corr, hotspot)
+    all_pc = med(pair_corr, np.ones(len(d_p), bool))
+    hot_sc = med(score, hotspot)
+    all_sc = med(score, np.ones(len(d_p), bool))
+    hot_pc_mean = (
+        round(float(pair_corr[hotspot].mean()), 2) if hotspot.any() else None
+    )
+    sym_line = (
+        f"mean pair-corr {hot_pc_mean} vs {round(float(pair_corr.mean()), 2)} for all Ca"
+        if hot_pc_mean is not None
+        else "elevated COM pair-corr"
+    )
+    if hot_sc and all_sc and (hot_sc > 0 or all_sc > 0):
+        sym_line += f"; crystallinity {hot_sc} vs {all_sc}"
+    n_hot_near = int((hotspot & near).sum())
+    n_hot_far = int((hotspot & ~near).sum())
+    n_384 = int((hotspot & hit_384).sum())
+    n_629 = int((hotspot & hit_629).sum())
+    n_both = int((hotspot & hit_384 & hit_629).sum())
+    n_inter_hot = int((hotspot & inter).sum())
+    n_inter_all = int(inter.sum())
+
     answers = [
         (
-            f"Not along the phosphate backbone: {pack(near)['nHot']}/{pack(near)['n']} "
-            f"Ca within 8 Å of P are hotspots ({100 * pack(near)['frac']:.1f}%). "
-            f"{int(inside.sum())} Ca sit inside the phosphate cylinder (grooves); "
-            f"{int((inside & hotspot).sum())} of those are hotspots."
+            f"Symmetry pockets: {n_hot} Ca in {n_clusters} clusters with elevated COM pair-corr "
+            f"({sym_line}). Hotspots are local nucleation sites, not a uniform ordered coat."
         ),
         (
-            "Needs radial room: hotspot fraction peaks at "
-            + (
-                f"d(P) {peak['lo']:.0f}–{peak['hi']:.0f} Å ({100 * peak['frac']:.0f}% of Ca there)"
-                if peak
-                else "larger d(P)"
-            )
-            + (
-                f", ~{peak_rad['lo']:.0f}–{peak_rad['hi']:.0f} Å outside the phosphate surface."
-                if peak_rad
-                else "."
-            )
-            + f" COM a = {COM_A:.2f} Å."
+            f"Shell growth from P-tethered gel: {n_hot_near}/{n_hot} hotspots are phosphate-bound "
+            f"(d(P)<8 Å); {n_hot_far} sit in the outer gel. "
+            f"Median hotspot d(P) {med(d_p, hotspot)} Å vs {med(d_p, np.ones(len(d_p), bool))} Å for all Ca. "
+            f"{int((inside & hotspot).sum())} groove-interior Ca flagged — order nucleates on the gel shell, "
+            "not packed in the phosphate cylinder."
         ),
         (
-            f"No strong helical nodes: only {n_p_with_hot}/{n_p} phosphates have a hotspot "
-            f"within 8 Å. Azimuth of hotspots is scattered, not a repeating P-register."
+            f"Incipient COM registry: at hotspots, {n_384}/{n_hot} have a 3.84 Å neighbor, "
+            f"{n_629}/{n_hot} at 6.29 Å, {n_both}/{n_hot} both (whewellite edge-share + a-chain). "
+            f"{n_inter_hot}/{n_hot} hotspots are intermediate-phase ({n_inter_all} total). "
+            f"{n_p_with_hot}/{n_p} phosphates within 8 Å of a hotspot — partial patches, not a locked P-register."
         ),
     ]
     return {
@@ -407,7 +359,12 @@ def nucleation_where_summary(
         "comA": COM_A,
         "nInside": int(inside.sum()),
         "nInsideHot": int((inside & hotspot).sum()),
-        "nHot": int(hotspot.sum()),
+        "nHot": n_hot,
+        "nClusters": n_clusters,
+        "medianPairCorrHot": hot_pc,
+        "medianPairCorrAll": all_pc,
+        "medianScoreHot": hot_sc,
+        "medianScoreAll": all_sc,
         "medianDpAll": round(float(np.median(d_p)), 1) if len(d_p) else None,
         "medianDpHot": round(float(np.median(d_p[hotspot])), 1) if hotspot.any() else None,
         "medianRHot": round(float(np.median(r_axis[hotspot])), 1) if hotspot.any() else None,
@@ -541,6 +498,24 @@ def transform_strands(strands, pairs, seeds, origin, e_x, axis, e_y):
     return out_s, out_p, out_seeds
 
 
+def water_helix(atoms, origin, e_x, axis, e_y):
+    """Hydrate OW + extra HOH oxygens in helix frame (not oxalate O1–O4)."""
+    xs, ys, zs = [], [], []
+    for a in atoms:
+        name = (a.get("name") or "").strip().upper()
+        res = (a.get("resname") or "").strip().upper()
+        el = (a.get("element") or "").strip().upper()
+        is_ow = name.startswith("OW")
+        is_hoh = res == "HOH" and el.startswith("O")
+        if not (is_ow or is_hoh):
+            continue
+        hx = to_helix(a["xyz"], origin, e_x, axis, e_y)
+        xs.append(round(float(hx[0]), 3))
+        ys.append(round(float(hx[1]), 3))
+        zs.append(round(float(hx[2]), 3))
+    return {"x": xs, "y": ys, "z": zs}
+
+
 def oxalate_segments(atoms, origin, e_x, axis, e_y):
     """C–C and C–O sticks: monomer C2O4 per shell residue + crystal seed patch."""
     to_hx = lambda p: r3(to_helix(p, origin, e_x, axis, e_y))
@@ -586,7 +561,11 @@ def build_model(geom: str) -> dict:
     score = np.array([float(r["crystallinity"]) for r in rows])
     com_reg = np.array([float(r.get("com_registry", 0) or 0) for r in rows])
     pair_corr = np.array([float(r.get("pair_corr", r.get("com_registry", 0)) or 0) for r in rows])
+    hit_384 = np.array([int(r.get("hit_384", 0) or 0) for r in rows], dtype=bool)
+    hit_629 = np.array([int(r.get("hit_629", 0) or 0) for r in rows], dtype=bool)
     hotspot = np.array([int(r.get("hotspot", 0) or 0) for r in rows], dtype=bool)
+    hotspot_shell = hotspot & (d_p >= DNA_HOTSPOT_DP_MAX)
+    hotspot = hotspot & (d_p < DNA_HOTSPOT_DP_MAX)
     dna_heavy = load_dna_heavy(pdb)
     pxyz = load_phosphate_xyz(pdb)
     r_axis = helix_axis_radius(ca_pts, dna_heavy)
@@ -606,8 +585,21 @@ def build_model(geom: str) -> dict:
     if len(pxyz) and hotspot.any():
         d_ph = np.linalg.norm(pxyz[:, None, :] - ca_pts[hotspot][None, :, :], axis=2)
         n_p_with_hot = int((d_ph.min(axis=1) < 8.0).sum())
+    hotspot_clusters = hotspot_clusters_for_viewer(hx_ca, hotspot, pair_corr, d_p)
     where = nucleation_where_summary(
-        d_p, r_axis, r_phosphate, hotspot, phi, len(pxyz), n_p_with_hot
+        d_p,
+        r_axis,
+        r_phosphate,
+        hotspot,
+        phi,
+        len(pxyz),
+        n_p_with_hot,
+        pair_corr,
+        score,
+        phase,
+        hit_384,
+        hit_629,
+        len(hotspot_clusters),
     )
 
     envelopes = {}
@@ -637,7 +629,7 @@ def build_model(geom: str) -> dict:
 
     counts = {name: int((phase == i).sum()) for name, i in PHASE_INDEX.items()}
     counts["nucleationHotspots"] = int(hotspot.sum())
-    hotspot_clusters = hotspot_clusters_for_viewer(hx_ca, hotspot, pair_corr, d_p)
+    counts["nucleationHotspotsShell"] = int(hotspot_shell.sum())
     counts["nucleationClusters"] = len(hotspot_clusters)
     counts["insidePhosphate"] = int((~outward).sum())
     print("counts", counts)
@@ -652,6 +644,9 @@ def build_model(geom: str) -> dict:
             f"oxalate sticks: {len(oxalate)} bonds, {oxalate_units} intact C2O4 units",
             flush=True,
         )
+    water = water_helix(atoms, origin, e_x, axis, e_y)
+    print(f"water O: {len(water['x'])}", flush=True)
+    counts["nWater"] = len(water["x"])
     seed_r = float(spec.get("seedRadius", 30.0))
     r_ca = float(np.max(radial)) if len(radial) else r_dna
     out = {
@@ -684,6 +679,7 @@ def build_model(geom: str) -> dict:
         "oxalate": oxalate,
         "oxalateUnits": oxalate_units,
         "oxalateUnitOffsets": oxalate_unit_offsets,
+        "water": water,
         "ca": {
             "x": [round(float(v), 3) for v in hx_ca[:, 0]],
             "y": [round(float(v), 3) for v in hx_ca[:, 1]],
@@ -693,6 +689,7 @@ def build_model(geom: str) -> dict:
             "score": [round(float(v), 3) for v in score],
             "comRegistry": [round(float(v), 3) for v in pair_corr],
             "hotspot": hotspot.astype(int).tolist(),
+            "hotspotShell": hotspot_shell.astype(int).tolist(),
             "radial": [round(float(v), 2) for v in radial],
             "phi": [round(float(v), 1) for v in phi],
         },
@@ -752,10 +749,12 @@ def main():
     OUT.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(models, separators=(",", ":"))
     default = DEFAULT_GEOM if DEFAULT_GEOM in models else next(iter(models))
+    exported_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
     OUT.write_text(
         "window.DNA_CAOX_MODELS = "
         + payload
-        + f";\nwindow.DNA_CAOX_MODEL = window.DNA_CAOX_MODELS.{default};\n",
+        + f";\nwindow.DNA_CAOX_MODEL = window.DNA_CAOX_MODELS.{default};\n"
+        + f'window.DNA_CAOX_EXPORTED_AT = "{exported_at}";\n',
         encoding="utf-8",
     )
     print(f"\nWrote {OUT} ({OUT.stat().st_size / 1024:.1f} KB)")
