@@ -1,0 +1,17 @@
+Phosphate templating — strand Ca–Ca
+================================================
+
+Honest gel (no COM targets)
+  n_Ca=132  P-bound=89  seq n=40
+  median seq Ca–Ca=8.00 Å   6.29 hits=0  3.84 hits=0
+  P-layer pairs 3.84=7  6.29=21  oxalate bridges=18
+
+Planted alt-P 30 Å (COM targets)
+  n_Ca=3593  P-bound=303  seq n=20
+  median seq Ca–Ca=7.71 Å   6.29 hits=2  3.84 hits=0
+  P-layer pairs 3.84=323  6.29=717  oxalate bridges=281
+
+No-DNA blob (same N, no COM targets)
+  n_Ca=132  P-bound=0  seq n=0
+  median seq Ca–Ca=nan Å   6.29 hits=0  3.84 hits=0
+  P-layer pairs 3.84=0  6.29=0  oxalate bridges=0

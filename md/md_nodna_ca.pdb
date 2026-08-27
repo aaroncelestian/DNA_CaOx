@@ -1,0 +1,10 @@
+HEADER    CALCIUM IONS
+HETATM    1  CA   CA Y   1      15.931  33.156  37.906  1.00 20.00          CA
+HETATM    2  CA   CA Y   2      11.290  16.830  53.087  1.00 20.00          CA
+HETATM    3  CA   CA Y   3      38.853  27.102  33.719  1.00 20.00          CA
+HETATM    4  CA   CA Y   4      40.756  22.749  16.368  1.00 20.00          CA
+HETATM    5  CA   CA Y   5      46.574  41.106  33.765  1.00 20.00          CA
+HETATM    6  CA   CA Y   6      47.907  35.470  55.536  1.00 20.00          CA
+HETATM    7  CA   CA Y   7      19.460  35.686  32.429  1.00 20.00          CA
+HETATM    8  CA   CA Y   8      26.372  37.446  20.890  1.00 20.00          CA
+END

@@ -1,0 +1,17 @@
+MD nucleation observables (OpenMM; DNA vs no-DNA)
+====================================================
+
+Smoke / short NVT, not 50-200 ns. Ca and oxalate start in solution.
+Inner-sphere Ca-OP ~2.3-2.5 A; sequential strand Ca-Ca ~6.3 A if P templates a.
+
+md_dna: n_atoms=27824  n_Ca=8  n_P=22  n_OP=44
+  box (nm): 6.64 x 6.64 x 6.64
+  Ca-Ca: min=13.97  median=28.08  n(3.84+/-0.25)=0  n(6.29+/-0.40)=0
+  Ca-OP min: median=7.44  n(<2.7 A inner-sphere)=0
+  DNA-bound Ca: 0  seq Ca-Ca n=0  seq 6.29=0  seq 3.84=0
+
+md_nodna: n_atoms=28520  n_Ca=8  n_P=0  n_OP=0
+  box (nm): 6.64 x 6.64 x 6.64
+  Ca-Ca: min=7.20  median=26.42  n(3.84+/-0.25)=0  n(6.29+/-0.40)=0
+  DNA-bound Ca: 0  seq Ca-Ca n=0  seq 6.29=0  seq 3.84=0
+

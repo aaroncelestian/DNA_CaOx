@@ -1,0 +1,27 @@
+Where COM-like order appears — saturated shell
+====================================================
+Hotspots: 55  median d(P)=18.3 Å  median r_axis=25.4 Å
+Phosphate surface radius: 9.05 Å   COM a=6.290 Å
+
+1) Backbone (d(P)<8 Å): 3/253 Ca (1.2%)
+   Inside P cylinder: 232 Ca, 0 hotspots
+2) Room (d(P) 12–20 Å): 29/222 Ca (13.1%)
+3) Nodes: hotspots do not follow the phosphate helix in unroll.
+
+d(P)  n   n_hot  frac
+   1.0    4    0    0.0%
+   3.0   61    1    1.6%
+   5.0   76    2    2.6%
+   7.0  112    0    0.0%
+   9.0   79    0    0.0%
+  11.0   41    3    7.3%
+  13.0   53    7   13.2%
+  15.0   66    4    6.1%
+  17.0   46    9   19.6%
+  19.0   57    9   15.8%
+  21.0   59    6   10.2%
+  23.0   38    4   10.5%
+  25.0   66    6    9.1%
+  27.0   62    4    6.5%
+  29.0   21    0    0.0%
+  31.0    8    0    0.0%

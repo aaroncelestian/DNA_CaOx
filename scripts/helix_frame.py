@@ -8,6 +8,12 @@ from oxalate_sticks import oxalate_segments_by_residue  # noqa: E402
 
 
 def basis_from_dna(dna_xyz: np.ndarray, seed_xyz: np.ndarray | None = None):
+    if dna_xyz is None or len(dna_xyz) < 3:
+        if seed_xyz is not None and len(seed_xyz):
+            origin = np.mean(np.asarray(seed_xyz, float), axis=0)
+        else:
+            origin = np.zeros(3)
+        return origin, np.array([0.0, 0.0, 1.0]), np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0])
     origin = dna_xyz.mean(axis=0)
     _, _, vt = np.linalg.svd(dna_xyz - origin)
     axis = vt[0] / max(float(np.linalg.norm(vt[0])), 1e-8)

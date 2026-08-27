@@ -2,7 +2,13 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 const MODELS = window.DNA_CAOX_MODELS || { sphere: window.DNA_CAOX_MODEL };
-let MODEL = MODELS.altp || MODELS.local || MODELS.sphere || window.DNA_CAOX_MODEL;
+const DEFAULT_GEOM = "shell_lattice";
+let MODEL =
+  MODELS[DEFAULT_GEOM] ||
+  MODELS.altp ||
+  MODELS.local ||
+  MODELS.sphere ||
+  window.DNA_CAOX_MODEL;
 if (!MODEL) {
   throw new Error("model-data.js did not load");
 }
@@ -53,6 +59,8 @@ const camera = new THREE.PerspectiveCamera(42, 1, 0.5, 800);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
+controls.autoRotate = false;
+controls.autoRotateSpeed = 0.45; // ~2.2 min per orbit at 60 fps
 controls.target.set(0, 0, 0);
 
 scene.add(new THREE.AmbientLight(0x9aa4b2, 0.55));
@@ -72,7 +80,8 @@ const mineralGroup = new THREE.Group();
 const envGroup = new THREE.Group();
 const shellGroup = new THREE.Group();
 const hotspotGroup = new THREE.Group();
-root.add(dnaGroup, mineralGroup, envGroup, shellGroup, hotspotGroup);
+const guideGroup = new THREE.Group();
+root.add(dnaGroup, mineralGroup, envGroup, shellGroup, hotspotGroup, guideGroup);
 
 function catmull(points, samples) {
   const curve = new THREE.CatmullRomCurve3(points, false, "centripetal");
@@ -258,7 +267,7 @@ function buildEnvelopes() {
     const mat = new THREE.MeshLambertMaterial({
       color: PHASE_COLOR[name] || PHASE_COLOR.intermediate,
       transparent: true,
-      opacity: name === "nucleation" ? 0.14 : name === "shell" ? 0.12 : 0.18,
+      opacity: name === "nucleation" ? 0.24 : name === "shell" ? 0.16 : 0.2,
       side: THREE.DoubleSide,
       depthWrite: false,
       emissive: name === "nucleation" ? 0x221a00 : 0x000000,
@@ -272,19 +281,49 @@ function buildEnvelopes() {
 
 let hotspotMesh = null;
 let hotspotIndices = [];
+let hotspotClusterMeshes = [];
 
-function updateHotspotMarkers() {
+function dpColor(dp) {
+  const t = Math.min(1, (dp || 0) / 32);
+  return new THREE.Color().setHSL(0.08 + 0.55 * (1 - t), 0.75, 0.5);
+}
+
+function caKeep(i, dmin, dmax, rmax, slab) {
+  return (
+    ca.dP[i] >= dmin &&
+    ca.dP[i] <= dmax &&
+    ca.radial[i] <= rmax &&
+    Math.abs(ca.y[i]) <= slab
+  );
+}
+
+function hotspotColor(i) {
+  return dpColor(ca.dP[i]);
+}
+
+function updateHotspotMarkers(dmin, dmax, rmax, slab) {
   if (!hotspotMesh || !hotspotIndices.length) return;
   const dummy = new THREE.Object3D();
   for (let k = 0; k < hotspotIndices.length; k++) {
     const i = hotspotIndices[k];
+    const on = caKeep(i, dmin, dmax, rmax, slab);
     dummy.position.set(ca.x[i], ca.y[i], ca.z[i]);
-    const s = 0.9 + 0.5 * Math.min(1, (ca.comRegistry?.[i] || 0) / 0.28);
-    dummy.scale.setScalar(s);
+    dummy.scale.setScalar(on ? 1.35 : 0.001);
     dummy.updateMatrix();
     hotspotMesh.setMatrixAt(k, dummy.matrix);
+    hotspotMesh.setColorAt(k, hotspotColor(i));
   }
   hotspotMesh.instanceMatrix.needsUpdate = true;
+  if (hotspotMesh.instanceColor) hotspotMesh.instanceColor.needsUpdate = true;
+}
+
+function buildHotspotClusterRings() {
+  hotspotClusterMeshes.forEach((mesh) => {
+    hotspotGroup.remove(mesh);
+    mesh.geometry.dispose();
+    mesh.material.dispose();
+  });
+  hotspotClusterMeshes = [];
 }
 
 function buildHotspotMarkers() {
@@ -296,25 +335,34 @@ function buildHotspotMarkers() {
   }
   if (!pts.length) return;
   hotspotIndices = pts;
-  const geom = new THREE.SphereGeometry(1, 10, 8);
-  const mat = new THREE.MeshBasicMaterial({
-    color: 0xc9b86a,
+  const geom = new THREE.SphereGeometry(1, 12, 10);
+  const mat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    roughness: 0.35,
+    metalness: 0.05,
+    emissive: 0x443300,
+    emissiveIntensity: 0.55,
     transparent: true,
-    opacity: 0.38,
-    depthTest: true,
+    opacity: 0.92,
   });
   hotspotMesh = new THREE.InstancedMesh(geom, mat, pts.length);
+  hotspotMesh.instanceColor = new THREE.InstancedBufferAttribute(
+    new Float32Array(pts.length * 3),
+    3
+  );
   const dummy = new THREE.Object3D();
   for (let k = 0; k < pts.length; k++) {
     const i = pts[k];
     dummy.position.set(ca.x[i], ca.y[i], ca.z[i]);
-    const s = 0.9 + 0.5 * Math.min(1, (ca.comRegistry?.[i] || 0) / 0.28);
-    dummy.scale.setScalar(s);
+    dummy.scale.setScalar(1.35);
     dummy.updateMatrix();
     hotspotMesh.setMatrixAt(k, dummy.matrix);
+    hotspotMesh.setColorAt(k, hotspotColor(i));
   }
   hotspotMesh.instanceMatrix.needsUpdate = true;
+  hotspotMesh.instanceColor.needsUpdate = true;
   hotspotGroup.add(hotspotMesh);
+  buildHotspotClusterRings();
 }
 
 function buildShells() {
@@ -353,6 +401,95 @@ function buildShells() {
   shellGroup.visible = false;
 }
 
+function buildRadialGuides() {
+  clearGroup(guideGroup);
+  const hx = MODEL.helix || {};
+  const rP = hx.rPhosphate || 9.0;
+  const comA = hx.comA || 6.29;
+  const y0 = hx.dnaZmin ?? -30;
+  const y1 = hx.dnaZmax ?? 30;
+  const h = Math.max(12, y1 - y0);
+  const y = 0.5 * (y0 + y1);
+  const rings = [
+    { r: rP, color: 0xc45c26, opacity: 0.5 },
+    { r: rP + comA, color: 0x1b9e77, opacity: 0.38 },
+    { r: rP + 2 * comA, color: 0x88c9b0, opacity: 0.22 },
+  ];
+  rings.forEach(({ r, color, opacity }) => {
+    const mesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(r, r, h, 64, 1, true),
+      new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        wireframe: true,
+      })
+    );
+    mesh.position.y = y;
+    guideGroup.add(mesh);
+  });
+}
+
+function drawUnroll(dmin, dmax, rmax, slab) {
+  const el = $("unroll");
+  if (!el) return;
+  const ctx = el.getContext("2d");
+  const w = el.width;
+  const h = el.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#0c0e12";
+  ctx.fillRect(0, 0, w, h);
+  const yMin = MODEL.helix.dnaZmin;
+  const yMax = MODEL.helix.dnaZmax;
+  const span = yMax - yMin || 1;
+  const padL = 22;
+  const padR = 8;
+  const padT = 10;
+  const padB = 16;
+  const xOf = (phi) => padL + ((phi + 180) / 360) * (w - padL - padR);
+  const yOf = (y) => padT + (1 - (y - yMin) / span) * (h - padT - padB);
+  ctx.strokeStyle = "#2a2e36";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT);
+  ctx.lineTo(padL, h - padB);
+  ctx.lineTo(w - padR, h - padB);
+  ctx.stroke();
+  (MODEL.strands || []).forEach((s) => {
+    (s.residues || []).forEach((r) => {
+      const p = r.P;
+      const phi = (Math.atan2(p[2], p[0]) * 180) / Math.PI;
+      ctx.fillStyle = "#c45c26";
+      ctx.beginPath();
+      ctx.arc(xOf(phi), yOf(p[1]), 2.3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  });
+  if (ca.hotspot) {
+    for (let i = 0; i < nCa; i++) {
+      if (!ca.hotspot[i] || !caKeep(i, dmin, dmax, rmax, slab)) continue;
+      const phi =
+        ca.phi != null ? ca.phi[i] : (Math.atan2(ca.z[i], ca.x[i]) * 180) / Math.PI;
+      const col = dpColor(ca.dP[i]);
+      ctx.fillStyle = `rgb(${Math.round(col.r * 255)},${Math.round(col.g * 255)},${Math.round(col.b * 255)})`;
+      ctx.beginPath();
+      ctx.arc(xOf(phi), yOf(ca.y[i]), 2.7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.fillStyle = "#8d8b82";
+  ctx.font = "9px ui-sans-serif, system-ui, sans-serif";
+  ctx.fillText("−180°", padL, h - 4);
+  ctx.fillText("+180°", w - padR - 28, h - 4);
+  ctx.save();
+  ctx.translate(10, h * 0.55);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText("axis", 0, 0);
+  ctx.restore();
+}
+
 const sprite = (() => {
   const c = document.createElement("canvas");
   c.width = 64;
@@ -371,8 +508,7 @@ const sprite = (() => {
 
 function colorFor(i, mode) {
   if (mode === "distance") {
-    const t = Math.min(1, ca.dP[i] / 32);
-    return new THREE.Color().setHSL(0.08 + 0.55 * (1 - t), 0.7, 0.48);
+    return dpColor(ca.dP[i]);
   }
   if (mode === "score") {
     const t = Math.min(1, ca.score[i] / 0.45);
@@ -583,11 +719,14 @@ function loadGeometry(name) {
   clearGroup(envGroup);
   clearGroup(shellGroup);
   clearGroup(hotspotGroup);
+  clearGroup(guideGroup);
   hotspotMesh = null;
   hotspotIndices = [];
+  hotspotClusterMeshes = [];
   buildDNA();
   buildEnvelopes();
   buildShells();
+  buildRadialGuides();
   buildHotspotMarkers();
   rebuildMineral();
   const geomIds = {
@@ -599,6 +738,8 @@ function loadGeometry(name) {
     gel: "geom-gel",
     shell15: "geom-shell15",
     gel_altp_geom: "geom-gel-altp",
+    templating_gel: "geom-templating",
+    templating_nodna: "geom-nodna",
     shell_lattice: "geom-shell-lattice",
   };
   Object.entries(geomIds).forEach(([g, id]) => {
@@ -635,7 +776,7 @@ async function loadTrajectory(url) {
     }
     if (section) section.hidden = false;
     if (status) {
-      status.textContent = `${trajData.frames.length} frames · ${url.split("/").pop()} · hotspots track Ca (OMM labels)`;
+      status.textContent = `${trajData.frames.length} frames · ${url.split("/").pop()} · Ca move; symmetry envelopes stay on OMM frame`;
     }
     applyTrajFrame(0);
   } catch (err) {
@@ -727,6 +868,37 @@ function syncLabels() {
   if (nh && MODEL.counts.nucleationHotspots != null) {
     nh.textContent = `(${MODEL.counts.nucleationHotspots})`;
   }
+  syncHotspotInfo();
+}
+
+function syncHotspotInfo() {
+  const el = $("hotspot-info");
+  const whereEl = $("where-answers");
+  const w = MODEL.nucleationWhere;
+  if (whereEl) {
+    if (w && w.answers && w.answers.length) {
+      whereEl.textContent = w.answers.map((a, i) => `${i + 1}) ${a}`).join("\n\n");
+    } else {
+      whereEl.textContent =
+        "Hotspot rate vs phosphate distance, radius, and helix — not occupancy blobs.";
+    }
+  }
+  if (!el) return;
+  const n = MODEL.counts?.nucleationHotspots || 0;
+  const nIn = MODEL.counts?.insidePhosphate;
+  if (!n) {
+    el.textContent =
+      "No COM pair-order hotspots in this cut (need neighbors at both ~3.84 Å and ~6.29 Å).";
+    return;
+  }
+  const lines = [
+    `${n} hotspot Ca (dots colored by d(P): orange = near P, cyan = far).`,
+    w
+      ? `median d(P) ${w.medianDpHot} Å vs ${w.medianDpAll} Å for all Ca.`
+      : "",
+    nIn != null ? `${nIn} Ca packed inside the phosphate cylinder (grooves) — that is the “inside DNA” cloud, not nucleation.` : "",
+  ].filter(Boolean);
+  el.textContent = lines.join("\n");
 }
 
 function applyUi() {
@@ -760,9 +932,7 @@ function applyUi() {
     if (ph === "nucleation") cb = $("ph-nucleation");
     else if (ph === "shell") cb = $("ph-shell");
     else cb = $(`ph-${ph}`);
-    let on = cb ? cb.checked : true;
-    // Hotspot envelope is OMM-only; gel shell stays as a length reference during FIRE.
-    if (ph === "nucleation" && trajData) on = false;
+    const on = cb ? cb.checked : true;
     mesh.visible = on;
     if (ph === "nucleation") mesh.material.opacity = op * 0.45;
     else if (ph === "shell") mesh.material.opacity = op * 0.65;
@@ -770,7 +940,16 @@ function applyUi() {
   });
   const hotEl = $("nucleation-hotspots");
   hotspotGroup.visible = !!(hotEl && hotEl.checked);
+  hotspotClusterMeshes.forEach((mesh) => {
+    mesh.visible = hotspotGroup.visible;
+  });
+  updateHotspotMarkers(dmin, dmax, rmax, slab);
   shellGroup.visible = $("shells").checked;
+  const guides = $("radial-guides");
+  guideGroup.visible = !!(guides && guides.checked);
+  const autoRotate = $("auto-rotate");
+  controls.autoRotate = !!(autoRotate && autoRotate.checked);
+  drawUnroll(dmin, dmax, rmax, slab);
 
   const { shown, shownPh } = applyCa(style, colorMode, phaseOn, dmin, dmax, rmax, slab);
   $("visible-count").textContent = `Showing ${shown} of ${nCa} Ca  ·  ${shownPh[0]} / ${shownPh[1]} / ${shownPh[2]}`;
@@ -922,20 +1101,24 @@ async function exportPDF(scale = 4) {
 
 function setNucleationView() {
   $("dmin").value = "0";
-  $("dmax").value = "18";
+  $("dmax").value = "28";
   $("rmax").value = "50";
-  $("ph-amorphous").checked = false;
-  $("ph-intermediate").checked = false;
-  $("ph-crystalline").checked = false;
-  if ($("ph-shell")) $("ph-shell").checked = true;
-  if ($("ph-nucleation")) $("ph-nucleation").checked = true;
-  $("envelopes").checked = true;
+  $("ph-amorphous").checked = true;
+  $("ph-intermediate").checked = true;
+  $("ph-crystalline").checked = true;
+  if ($("ph-shell")) $("ph-shell").checked = false;
+  if ($("ph-nucleation")) $("ph-nucleation").checked = false;
+  $("envelopes").checked = false;
   if ($("nucleation-hotspots")) $("nucleation-hotspots").checked = true;
-  $("env-opacity").value = "22";
-  const phase = document.querySelector('input[name="color"][value="phase"]');
-  if (phase) phase.checked = true;
+  if ($("radial-guides")) $("radial-guides").checked = true;
+  if ($("oxalate")) $("oxalate").checked = false;
+  $("env-opacity").value = "18";
+  const dist = document.querySelector('input[name="color"][value="distance"]');
+  if (dist) dist.checked = true;
+  const pts = document.querySelector('input[name="style"][value="points"]');
+  if (pts) pts.checked = true;
   applyUi();
-  setView("side");
+  setView("end");
   if (MODEL.traj) loadTrajectory(MODEL.traj);
 }
 
@@ -958,6 +1141,12 @@ function ui() {
   $("geom-gel").addEventListener("click", () => loadGeometry("gel"));
   $("geom-shell15").addEventListener("click", () => loadGeometry("shell15"));
   $("geom-gel-altp").addEventListener("click", () => loadGeometry("gel_altp_geom"));
+  if ($("geom-templating")) {
+    $("geom-templating").addEventListener("click", () => loadGeometry("templating_gel"));
+  }
+  if ($("geom-nodna")) {
+    $("geom-nodna").addEventListener("click", () => loadGeometry("templating_nodna"));
+  }
   $("geom-shell-lattice").addEventListener("click", () => loadGeometry("shell_lattice"));
   $("traj-step").addEventListener("input", () => {
     stopTraj();
@@ -986,12 +1175,17 @@ function updateScaleBar() {
   document.querySelector("#scale i").style.width = `${Math.max(24, Math.min(220, px))}px`;
 }
 
-buildDNA();
-buildEnvelopes();
-buildShells();
-buildHotspotMarkers();
-rebuildMineral();
-setView("side");
+if (MODELS[DEFAULT_GEOM]) {
+  loadGeometry(DEFAULT_GEOM);
+} else {
+  buildDNA();
+  buildEnvelopes();
+  buildShells();
+  buildRadialGuides();
+  buildHotspotMarkers();
+  rebuildMineral();
+  setView("side");
+}
 ui();
 resize();
 window.addEventListener("resize", resize);

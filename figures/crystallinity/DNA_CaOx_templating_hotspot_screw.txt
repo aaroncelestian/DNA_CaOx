@@ -1,0 +1,77 @@
+Hotspot screw / glide analysis — templating gel
+==========================================================
+Not a crystal search. Small clusters; DNA helix is itself a screw.
+Model: DNA_CaOx_templating_gel_omm.pdb  n_Ca=132  hotspots=44  P-bound seeds=89
+Map tolerance 1.20 A (local, not 0.25 A lattice).
+
+DNA phosphate screw (measured sequential P along strands):
+  n_steps=22  twist=28.2 deg  rise=4.25 A  P-P=6.70 A
+  textbook B-DNA: 36 deg / 3.38 A
+
+--- hotspots  (n=44, pairs=946) ---
+  pair motifs: DNA 1-step 6 (null 3.9, p95 7)
+             DNA 2-step 9 (null 8.2, p95 13)
+             2_1 (180 deg, 3.15 A) 2 (null 3.7, p95 7)
+             C2 dyad (180 deg, dz~0) 0 (null 1.2, p95 3)
+  Ca-Ca distances: 3.84 A pairs=7  6.29 A pairs=16
+  operators (fraction of Ca mapped within 1.20 A):
+    0.02  n=  1  DNA screw 1-step
+    0.02  n=  1  DNA screw 2-step
+    0.00  n=  0  textbook 36° / 3.38 Å
+    0.00  n=  0  2_1 (period 6.29 Å)
+    0.00  n=  0  2_1 (period 2×P rise)
+    0.05  n=  2  glide az=70° t=4.25 Å
+    0.05  n=  2  C2 perp az=160°
+
+--- P-bound seeds  (n=89, pairs=3916) ---
+  pair motifs: DNA 1-step 29 (null 14.1, p95 20)
+             DNA 2-step 28 (null 21.1, p95 28)
+             2_1 (180 deg, 3.15 A) 5 (null 12.3, p95 18)
+             C2 dyad (180 deg, dz~0) 3 (null 6.3, p95 10)
+  Ca-Ca distances: 3.84 A pairs=7  6.29 A pairs=21
+  operators (fraction of Ca mapped within 1.20 A):
+    0.06  n=  5  DNA screw 1-step
+    0.01  n=  1  DNA screw 2-step
+    0.00  n=  0  textbook 36° / 3.38 Å
+    0.00  n=  0  2_1 (period 6.29 Å)
+    0.00  n=  0  2_1 (period 2×P rise)
+    0.04  n=  4  glide az=30° t=8.50 Å
+    0.04  n=  4  C2 perp az=120°
+
+--- hot ∩ seed  (n=35, pairs=595) ---
+  pair motifs: DNA 1-step 6 (null 3.5, p95 7)
+             DNA 2-step 9 (null 5.4, p95 9)
+             2_1 (180 deg, 3.15 A) 2 (null 2.7, p95 6)
+             C2 dyad (180 deg, dz~0) 0 (null 0.7, p95 2)
+  Ca-Ca distances: 3.84 A pairs=6  6.29 A pairs=8
+  operators (fraction of Ca mapped within 1.20 A):
+    0.03  n=  1  DNA screw 1-step
+    0.03  n=  1  DNA screw 2-step
+    0.00  n=  0  textbook 36° / 3.38 Å
+    0.00  n=  0  2_1 (period 6.29 Å)
+    0.00  n=  0  2_1 (period 2×P rise)
+    0.06  n=  2  glide az=70° t=4.25 Å
+    0.06  n=  2  C2 perp az=160°
+
+Spatial hotspot clusters (link cutoff 7.0 A, min 3): 9
+  cl  1  n= 3  d(P)=4.1  r=10.7  z=-8.5  span z=3.4 A  nn=4.37/4.37  DNA1=0 DNA2=0 2_1=0 dyad=0  3.84=0 6.29=1
+       best operator: 0.33  glide az=0° t=3.15 Å
+  cl  2  n= 6  d(P)=5.7  r=12.6  z=+20.2  span z=8.5 A  nn=4.13/5.33  DNA1=1 DNA2=0 2_1=0 dyad=0  3.84=0 6.29=2
+       best operator: 0.17  glide az=120° t=6.29 Å
+  cl  3  n= 7  d(P)=5.2  r=15.5  z=+14.4  span z=12.1 A  nn=3.84/4.33  DNA1=2 DNA2=1 2_1=0 dyad=0  3.84=1 6.29=2
+       best operator: 0.14  DNA screw 1-step
+  cl  4  n= 4  d(P)=6.0  r=12.7  z=+0.8  span z=6.0 A  nn=4.06/5.06  DNA1=1 DNA2=0 2_1=0 dyad=0  3.84=1 6.29=1
+       best operator: 0.00  DNA screw 1-step
+  cl  5  n= 5  d(P)=5.3  r=15.1  z=-13.2  span z=10.0 A  nn=4.00/4.21  DNA1=0 DNA2=0 2_1=0 dyad=0  3.84=1 6.29=2
+       best operator: 0.20  glide az=160° t=4.25 Å
+  cl  6  n= 4  d(P)=7.3  r=14.5  z=-22.1  span z=7.8 A  nn=6.28/6.34  DNA1=0 DNA2=0 2_1=0 dyad=0  3.84=0 6.29=2
+       best operator: 0.00  DNA screw 1-step
+  cl  7  n= 3  d(P)=5.3  r=16.1  z=-30.8  span z=6.9 A  nn=4.09/4.09  DNA1=0 DNA2=0 2_1=0 dyad=0  3.84=1 6.29=1
+       best operator: 0.00  DNA screw 1-step
+  cl  8  n= 4  d(P)=4.6  r=11.0  z=+29.5  span z=5.8 A  nn=3.83/3.94  DNA1=1 DNA2=0 2_1=0 dyad=0  3.84=2 6.29=2
+       best operator: 0.00  DNA screw 1-step
+  cl  9  n= 3  d(P)=5.4  r=17.0  z=+2.7  span z=7.9 A  nn=4.09/4.09  DNA1=0 DNA2=0 2_1=0 dyad=0  3.84=1 6.29=1
+       best operator: 0.33  glide az=30° t=8.50 Å
+
+Reading: a motif count above the azimuth-shuffle p95 is evidence
+the DNA screw (or 2_1 / glide) is organizing Ca, not just packing.

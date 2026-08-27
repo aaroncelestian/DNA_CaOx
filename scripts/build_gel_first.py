@@ -6,7 +6,8 @@ Unlike grow_crystal_from_growth.py (whewellite unit-cell cut), this path:
   * places Ca2+ at each phosphate using bond-valence OP chelation
   * attaches a rigid CaC2O4·nH2O fragment with *independent* orientation
     per site (no lattice alignment, no COM Ca–Ca targets)
-  * enforces only steric rules (Ca–Ca ≥ 6 Å, inter-unit O–O ≥ 2 Å)
+  * enforces steric rules: Ca–Ca ≥ 3.70 Å along a strand (COM 3.84 Å
+    allowed) and ≥ 6 Å for non-neighbor packing; inter-unit O–O ≥ 2 Å
 
 Use this as the honest nucleation/gel starting point before optional
 clash relief (DLS or FIRE *without* whewellite distance restraints).
@@ -40,11 +41,14 @@ from build_dna_caox import (  # noqa: E402
     transform_fragment,
 )
 from geom_constraints import (  # noqa: E402
+    DNA_HEAVY,
     MIN_CA_CA,
+    MIN_CA_CA_COM,
     MIN_O_O,
     is_ca,
     is_oxygen,
-    separate_ca,
+    separate_ca_pairwise,
+    strand_ca_floor_matrix,
     short_contact_summary,
     xyz_of,
 )
@@ -117,6 +121,136 @@ def place_gel_units_geometry(sites, frag, dna_xyz, dna_o, *, n_twist: int = 24):
                 placed_o.append(a["xyz"].copy())
 
     return placements
+
+
+def place_one_caox(ca_xyz, outward, frag, dna_xyz, dna_o, placed_heavy, placed_o, n_twist=16):
+    """Place one rigid CaOx fragment; return atoms or None if too clashed."""
+    best_atoms, best_sc = None, 1e99
+    other = np.array(placed_heavy) if placed_heavy else np.zeros((0, 3))
+    other_o = np.array(placed_o) if placed_o else np.zeros((0, 3))
+    for k in range(n_twist):
+        ang = k * (2 * math.pi / n_twist)
+        atoms = transform_fragment(frag, ca_xyz, outward, ang)
+        lig = np.array([a["xyz"] for a in atoms if a["element"].upper() != "CA"])
+        lig_o = np.array([a["xyz"] for a in atoms if is_oxygen(a)])
+        sc = clash_score(lig, lig_o, dna_xyz, dna_o, other, other_o)
+        if sc < best_sc:
+            best_sc, best_atoms = sc, atoms
+        if sc < 1e-9:
+            break
+    if best_atoms is None or best_sc > 12.0:
+        return None, best_sc
+    return best_atoms, best_sc
+
+
+def ca_site_ok(cand, dna_xyz, placed_ca, min_dna=2.25, min_ca=MIN_CA_CA_COM):
+    if float(np.linalg.norm(dna_xyz - cand, axis=1).min()) < min_dna:
+        return False
+    if placed_ca and float(np.linalg.norm(np.array(placed_ca) - cand, axis=1).min()) < min_ca:
+        return False
+    return True
+
+
+def add_second_row(sites, placements, frag, dna_xyz, dna_o, extra_per_p: int):
+    """Disordered extra CaOx around each phosphate unit (not a planted lattice).
+
+    One attempt along the outward 3.84 Å COM edge-share, then random fills
+    in the 4–9 Å coat so a local patch has enough CaOx/water to organize.
+    """
+    if extra_per_p <= 0:
+        return sites, placements
+    placed_heavy, placed_o, placed_ca = [], [], []
+    for atoms, site in zip(placements, sites):
+        placed_ca.append(np.asarray(site["ca"], float))
+        for a in atoms:
+            if a["element"].upper() != "H":
+                placed_heavy.append(a["xyz"].copy())
+            if is_oxygen(a):
+                placed_o.append(a["xyz"].copy())
+
+    extra_sites, extra_pl = [], []
+    p_sites = [s for s in sites if s.get("p_bound", True)]
+    for parent in p_sites:
+        n_here = 0
+        candidates = [parent["ca"] + 3.843 * parent["outward"]]
+        for _ in range(extra_per_p * 28):
+            vec = RNG.normal(size=3)
+            vec /= max(float(np.linalg.norm(vec)), 1e-8)
+            vec = 0.55 * vec + 0.45 * parent["outward"]
+            vec /= max(float(np.linalg.norm(vec)), 1e-8)
+            r = float(RNG.uniform(4.0, 9.0))
+            candidates.append(parent["ca"] + r * vec)
+        for cand in candidates:
+            if n_here >= extra_per_p:
+                break
+            cand = np.asarray(cand, float)
+            if not ca_site_ok(cand, dna_xyz, placed_ca):
+                continue
+            out = cand - parent["ca"]
+            nrm = float(np.linalg.norm(out))
+            outward = out / nrm if nrm > 1e-6 else parent["outward"]
+            atoms, sc = place_one_caox(
+                cand, outward, frag, dna_xyz, dna_o, placed_heavy, placed_o
+            )
+            if atoms is None:
+                continue
+            rec = {
+                "si": parent["si"],
+                "j": parent["j"],
+                "ps": parent["ps"],
+                "p_xyz": parent["p_xyz"],
+                "ops": parent["ops"],
+                "ca": cand,
+                "bv": {},
+                "outward": outward,
+                "p_bound": False,
+                "clash": sc,
+            }
+            extra_sites.append(rec)
+            extra_pl.append(atoms)
+            placed_ca.append(cand)
+            n_here += 1
+            for a in atoms:
+                if a["element"].upper() != "H":
+                    placed_heavy.append(a["xyz"].copy())
+                if is_oxygen(a):
+                    placed_o.append(a["xyz"].copy())
+    return sites + extra_sites, placements + extra_pl
+
+
+def pack_coat_waters(solute_xyz, dna_xyz, n_target: int, inner=2.20, outer=9.5):
+    """Extra water O sites in the first ~10 Å coat (not a 30 Å slab)."""
+    if n_target <= 0 or len(solute_xyz) == 0:
+        return []
+    lo = solute_xyz.min(0) - outer
+    hi = solute_xyz.max(0) + outer
+    spacing = 2.40
+    kept = []
+    xs = np.arange(lo[0], hi[0], spacing)
+    ys = np.arange(lo[1], hi[1], spacing * math.sqrt(3) / 2)
+    cands = []
+    for iy, y in enumerate(ys):
+        xoff = 0.5 * spacing if iy % 2 else 0.0
+        for x in xs:
+            for iz, z in enumerate(np.arange(lo[2], hi[2], spacing * 0.85)):
+                pt = np.array(
+                    [x + xoff, y, z + (0.3 * spacing if iz % 2 else 0.0)]
+                )
+                d_sol = float(np.linalg.norm(solute_xyz - pt, axis=1).min())
+                if inner <= d_sol <= outer:
+                    cands.append((d_sol, pt))
+    cands.sort(key=lambda t: t[0])
+    for _, pt in cands:
+        if len(kept) >= n_target:
+            break
+        if float(np.linalg.norm(dna_xyz - pt, axis=1).min()) < DNA_HEAVY:
+            continue
+        if float(np.linalg.norm(solute_xyz - pt, axis=1).min()) < inner:
+            continue
+        if kept and float(np.linalg.norm(np.array(kept) - pt, axis=1).min()) < 2.15:
+            continue
+        kept.append(pt)
+    return kept
 
 
 def write_seed_pdb(path: Path, dna_atoms, seed_strands, remarks: list[str]):
@@ -260,6 +394,7 @@ def write_gel_pdb(
     sites,
     frag,
     remarks: list[str],
+    extra_waters=None,
 ):
     tags = assign_nucleotide_residues(
         dna_atoms, dna_conect, strands, lookup, duplexes
@@ -337,6 +472,8 @@ def write_gel_pdb(
                 if old_b in local_map:
                     bonds[local_map[old_a]].append(local_map[old_b])
         g = sites[site_i - 1]
+        if not g.get("p_bound", True):
+            continue
         ca_xyz = g["ca"]
         op_sorted = sorted(g["ops"], key=lambda o: np.linalg.norm(ca_xyz - o["xyz"]))
         if ca_serial and op_sorted:
@@ -345,6 +482,18 @@ def write_gel_pdb(
             if len(op_sorted) > 1 and np.linalg.norm(ca_xyz - op_sorted[1]["xyz"]) < 3.2:
                 bonds[ca_serial].append(op_sorted[1]["serial"])
                 bonds[op_sorted[1]["serial"]].append(ca_serial)
+
+    if extra_waters:
+        wseq = len(placements) + 1
+        for pt in extra_waters:
+            serial += 1
+            out.append(
+                format_atom(
+                    "HETATM", serial, "OW", "HOH", "W", wseq,
+                    pt, 1.0, 30.0, "O",
+                )
+            )
+            wseq += 1
 
     for s in sorted(bonds):
         partners = sorted(set(bonds[s]))
@@ -368,6 +517,27 @@ def main():
         default="random",
         help="Oxalate placement: random twist per site or geometry-biased outward.",
     )
+    ap.add_argument(
+        "--templating",
+        action="store_true",
+        help="Thin gel for phosphate-templating test: strand-aware Ca–Ca "
+        "(allow 3.84 Å), second-row CaOx + extra waters, write "
+        "DNA_CaOx_templating_gel*.pdb (does not overwrite gel_altP_geom "
+        "used by the 30 Å shell).",
+    )
+    ap.add_argument(
+        "--extra-per-p",
+        type=int,
+        default=None,
+        help="Extra CaOx units per phosphate (disordered 4–9 Å coat). "
+        "Templating default: 2.",
+    )
+    ap.add_argument(
+        "--extra-waters",
+        type=int,
+        default=None,
+        help="Extra water O sites in the ~10 Å coat. Templating default: 200.",
+    )
     ap.add_argument("-o", "--output", type=Path, default=None)
     ap.add_argument("--seeds", type=Path, default=None)
     ap.add_argument("--report", type=Path, default=None)
@@ -378,6 +548,8 @@ def main():
             "gel_geom" if args.orient == "geometry" else "gel_first"
         )
     )
+    if args.templating:
+        tag = "templating_gel_altP" if args.alt_p else "templating_gel"
     out_pdb = args.output or ROOT / f"DNA_CaOx_{tag}.pdb"
     out_seeds = args.seeds or ROOT / f"DNA_CaOx_{tag}_seeds.pdb"
     report_path = args.report or ROOT / f"DNA_CaOx_{tag}_report.txt"
@@ -427,10 +599,21 @@ def main():
                     "ca": ca,
                     "bv": bv,
                     "outward": outward,
+                    "p_bound": True,
                 }
             )
 
-    ca_pts = separate_ca([s["ca"] for s in sites], MIN_CA_CA)
+    ca_pts = np.array([s["ca"] for s in sites], float)
+    seq_pairs = []
+    by_strand: dict[int, list[int]] = defaultdict(list)
+    for i, s in enumerate(sites):
+        by_strand[s["si"]].append(i)
+    for ix in by_strand.values():
+        ix.sort(key=lambda i: sites[i]["j"])
+        for a, b in zip(ix, ix[1:]):
+            seq_pairs.append((a, b))
+    floors = strand_ca_floor_matrix(len(sites), seq_pairs)
+    ca_pts = separate_ca_pairwise(ca_pts, floors)
     for s, ca in zip(sites, ca_pts):
         s["ca"] = ca
 
@@ -459,6 +642,45 @@ def main():
             kept.append(a)
         placements[idx] = kept
 
+    extra_per_p = (
+        args.extra_per_p
+        if args.extra_per_p is not None
+        else (2 if args.templating else 0)
+    )
+    extra_waters_n = (
+        args.extra_waters
+        if args.extra_waters is not None
+        else (200 if args.templating else 0)
+    )
+    n_p_units = sum(1 for s in sites if s.get("p_bound", True))
+    sites, placements = add_second_row(
+        sites, placements, frag, dna_xyz, dna_o, extra_per_p
+    )
+    n_extra_units = len(sites) - n_p_units
+    water_ids = {a["serial"] for a in frag["waters"]}
+    for idx, atoms in enumerate(placements):
+        others_o = list(dna_o)
+        for k, unit in enumerate(placements):
+            if k == idx:
+                continue
+            others_o.extend(a["xyz"] for a in unit if is_oxygen(a))
+        others_o = np.array(others_o) if others_o else np.zeros((0, 3))
+        kept = []
+        for a in atoms:
+            if a["serial"] in water_ids and len(others_o):
+                if float(np.linalg.norm(others_o - a["xyz"], axis=1).min()) < MIN_O_O:
+                    continue
+            kept.append(a)
+        placements[idx] = kept
+    solute = []
+    for unit in placements:
+        solute.extend(a["xyz"] for a in unit if a["element"].upper() != "H")
+    extra_waters = pack_coat_waters(
+        np.array(solute) if solute else dna_xyz,
+        dna_xyz,
+        extra_waters_n,
+    )
+
     # Report
     orient_desc = (
         "geometry-biased outward (O–P–O plane, twist scanned)"
@@ -473,18 +695,23 @@ def main():
         "",
         f"DNA source : {DNA_PDB.name}",
         f"CaOx source: {CAOX_PDB.name} (rigid fragment, {orient_desc})",
-        f"Phosphates : {len(groups)} total  →  {len(sites)} CaOx units ({p_desc})",
+        f"Phosphates : {len(groups)} total  →  {n_p_units} CaOx at P ({p_desc})"
+        + (f"  + {n_extra_units} second-row CaOx" if n_extra_units else ""),
         f"Strands    : {len(strands)} ({', '.join(str(len(s)) for s in strands)} P each)",
         "",
         "This is NOT cut from Whewellite - xtl.pdb. Order emerges only after",
         "optional relaxation without COM distance restraints.",
         "",
+        f"Ca–Ca floor along strand: {MIN_CA_CA_COM:.2f} Å (COM 3.84 allowed); "
+        f"non-neighbor packing: {MIN_CA_CA:.1f} Å.",
         f"Ca–OP target (BV, 6-fold): {D_TARGET:.3f} Å",
         "",
         "Per-phosphate Ca placement (Å / v.u.)",
     ]
     bv_sums = []
     for s in sites:
+        if not s.get("p_bound", True):
+            continue
         g = group_by_p[s["ps"]]
         ca = s["ca"]
         d_ops = sorted(float(np.linalg.norm(ca - o["xyz"])) for o in g["op"])
@@ -500,13 +727,17 @@ def main():
     lines.append("")
     lines.append("Sequential Ca–Ca along strands (Å)  [DNA P–P is ~6.2–7.0; not forced]")
     for si, strand in enumerate(strands):
-        recs = [s for s in sites if s["si"] == si]
+        recs = [s for s in sites if s["si"] == si and s.get("p_bound", True)]
         recs.sort(key=lambda r: r["j"])
         lines.append(f"  Strand {si + 1}:")
         for a, b in zip(recs, recs[1:]):
             d = float(np.linalg.norm(a["ca"] - b["ca"]))
             seq_d.append(d)
-            flag = "OK" if MIN_CA_CA <= d <= 7.5 else ("LOW" if d < MIN_CA_CA else "HIGH")
+            flag = (
+                "OK"
+                if MIN_CA_CA_COM <= d <= 7.5
+                else ("LOW" if d < MIN_CA_CA_COM else "HIGH")
+            )
             lines.append(f"    Ca@{a['ps']:4d} – Ca@{b['ps']:4d}   {d:6.3f}  {flag}")
 
     if seq_d:
@@ -537,14 +768,18 @@ def main():
                 "chain": ch, "resseq": rs, "xyz": a["xyz"],
             }
         )
-    ster = short_contact_summary(check_atoms)
+    ster = short_contact_summary(check_atoms, min_ca=MIN_CA_CA_COM)
     lines.append("")
     lines.append(f"Median BV from phosphate O only: {np.median(bv_sums):.2f} v.u.")
-    lines.append(f"(Full Ca2+ balance needs oxalate + water; target total = 2.0 v.u.)")
+    lines.append("(Full Ca2+ balance needs oxalate + water; target total = 2.0 v.u.)")
+    lines.append(
+        f"Coat: {n_p_units} P-bound CaOx + {n_extra_units} extra CaOx + "
+        f"{len(extra_waters)} extra water O (not a 30 A shell)."
+    )
     lines.append("")
     lines.append("Sterics (rigid units)")
     lines.append(
-        f"  Ca–Ca < {MIN_CA_CA} Å: {ster['n_ca_short']}"
+        f"  Ca–Ca < {MIN_CA_CA_COM} Å: {ster['n_ca_short']}"
         + (f"  (min {ster['ca_min']:.3f})" if ster["ca_min"] is not None else "")
     )
     lines.append(
@@ -561,11 +796,14 @@ def main():
         "REMARK   2 Ca2+ placed by bond-valence OP chelation (~2.37 A target).",
         f"REMARK   3 Oxalate orientation: {orient_desc}.",
         "REMARK   4 Relax with fire_openmm; use --no-com-targets for honest gel.",
-        f"REMARK   5 {len(sites)} COM units on chain X.",
+        f"REMARK   5 {len(sites)} COM units on chain X "
+        f"({n_p_units} at P, {n_extra_units} second-row).",
+        f"REMARK   6 Strand Ca-Ca floor {MIN_CA_CA_COM:.2f} A (COM 3.84 allowed).",
+        f"REMARK   7 Extra waters: {len(extra_waters)} HOH on chain W.",
     ]
     write_gel_pdb(
         out_pdb, dna_atoms, dna_conect, strands, duplexes, lookup,
-        placements, sites, frag, remarks,
+        placements, sites, frag, remarks, extra_waters=extra_waters,
     )
 
     # Seed PDB for symmetry / viewer (flat COM Ca list, one per phosphate).
@@ -575,7 +813,11 @@ def main():
         for j, ps in enumerate(strand):
             if args.alt_p and (j % 2):
                 continue
-            ca = next(s["ca"] for s in sites if s["ps"] == ps)
+            ca = next(
+                s["ca"]
+                for s in sites
+                if s["ps"] == ps and s.get("p_bound", True)
+            )
             row.append({"xyz": ca.copy()})
         if row:
             seed_strands.append(row)
@@ -596,7 +838,7 @@ def main():
         seed_strands,
         [
             f"REMARK   1 COM Ca seeds for {tag}\n",
-            f"REMARK   2 {len(sites)} seeds on chain X ({p_desc})\n",
+            f"REMARK   2 {n_p_units} P-bound seeds on chain X ({p_desc})\n",
         ],
     )
 

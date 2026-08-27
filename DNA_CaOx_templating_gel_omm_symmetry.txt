@@ -1,0 +1,80 @@
+Symmetry + crystallinity map — DNA_CaOx_templating_gel_omm.pdb
+==============================================================
+WHW Ca sites: 132
+DNA-bound seeds: 44 (from DNA_CaOx_templating_gel_seeds.pdb)
+Reference COM cell: a=6.29  c=10.116  beta=109.46
+Strict COM net: map tol 0.25 Å; |v|-a < 0.20; |v|-c < 0.25; |v|-3.84 < 0.15; β within 10° of 70.5°.
+Crystalline: strongest COM-net pocket (a + 3.84 Å, score ≥ 0.22). Intermediate: nucleation site / partial COM order (score ≥ 0.10 or weak axis ≥ 0.05).
+
+Spatial domains (Ca clusters): 1
+  domain 1: 132 Ca  cryst_idx=0.00  a=0.00 c=0.00 384=0.00
+
+Strand / phosphate-layer order (hypothesis test)
+  Phosphate-bound Ca (d(P)<8 Å): 89 / 44 P
+  Sequential Ca–Ca along strands: n=40  median=8.00 Å
+    within 6.29±0.40 Å (COM a / P-P): 0 (0%)
+    within 3.843±0.25 Å (edge-share): 0 (0%)
+  Any P-bound Ca–Ca pair at 3.84 Å: 7
+  Any P-bound Ca–Ca pair at 6.29 Å: 21
+  Oxalate units bridging two P-bound Ca: 18
+  Sequential distances (Å):
+     7.992
+     7.149
+     7.432
+     9.468
+     8.413
+     6.942
+     8.529
+     8.036
+     6.960
+     9.928
+     8.891
+     6.821
+     6.735
+     8.035
+     7.970
+     7.997
+     8.207
+     9.296
+     7.440
+     8.269
+     7.994
+     7.149
+     7.438
+     9.566
+     8.306
+     6.971
+     8.553
+     7.985
+     7.060
+     9.827
+     8.888
+     6.819
+     6.742
+     8.020
+     7.987
+     7.981
+     8.382
+     9.212
+     7.445
+     8.252
+
+Nucleation hotspots (COM pair-corr clusters, r_axis ≥ 8.7 Å, interior core only): 44 Ca in 9 clusters (44 within 12 Å of P).
+  cluster 1: n=3  d_P≈5.4 Å  pair-corr=0.60
+  cluster 2: n=3  d_P≈4.1 Å  pair-corr=0.49
+  cluster 3: n=8  d_P≈5.6 Å  pair-corr=0.66
+  cluster 4: n=6  d_P≈5.7 Å  pair-corr=0.56
+  cluster 5: n=7  d_P≈5.2 Å  pair-corr=0.37
+  cluster 6: n=8  d_P≈4.9 Å  pair-corr=0.47
+  cluster 7: n=4  d_P≈7.3 Å  pair-corr=0.30
+  cluster 8: n=3  d_P≈5.3 Å  pair-corr=0.66
+  cluster 9: n=5  d_P≈4.2 Å  pair-corr=0.52
+
+  intermediate  : n=  12  d_P median=2.8 Å  score median=0.044
+
+  amorphous     : n= 120  d_P median=6.8 Å  score median=0.000
+
+Heatmaps written to /Users/aaroncelestian/Library/Mobile Documents/com~apple~CloudDocs/HTML/DNA_CaOx/figures/crystallinity/
+Per-Ca metrics: /Users/aaroncelestian/Library/Mobile Documents/com~apple~CloudDocs/HTML/DNA_CaOx/figures/crystallinity/DNA_CaOx_templating_gel_omm_ca_metrics.csv
+
+Growth-radius sweep skipped (no DNA layer, or --skip-sweep).

@@ -56,6 +56,29 @@ html, body {
   font-size: 11px;
 }
 
+#unroll {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 6px;
+  background: #0c0e12;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+#where-answers {
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.hint.mono {
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  line-height: 1.35;
+  margin-top: 6px;
+}
+
 section {
   margin-top: 12px;
   padding-top: 10px;
@@ -173,7 +196,6 @@ button:disabled {
   margin-right: 6px;
 }
 
-#legend .amorphous::before { background: var(--amorphous); }
-#legend .intermediate::before { background: var(--intermediate); }
-#legend .crystalline::before { background: var(--crystalline); }
+#legend .near::before { background: #e07a3d; }
+#legend .far::before { background: #5ec8c8; }
 #legend .nucleation::before { background: var(--nucleation); }

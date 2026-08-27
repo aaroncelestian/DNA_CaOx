@@ -1,0 +1,210 @@
+DNA–CaOx gel-first model (templating_gel; no whewellite lattice)
+============================================================
+Bond-valence model for Ca2+ at DNA phosphate (non-bridging OP1/OP2)
+  Ca–O target distance (6-fold): 2.375 Å
+  Acceptable Ca–OP window: 2.20–2.55 Å
+  Placement: bidentate chelation in the O–P–O plane,
+  offset slightly outward from the helix axis (solvent-exposed).
+  Remaining valence (~1.3 v.u.) is satisfied by oxalate oxygens
+  and waters in the first shell — not preset to whewellite geometry.
+
+DNA source : DNA.pdb
+CaOx source: Whewellite ca_ox.pdb (rigid fragment, geometry-biased outward (O–P–O plane, twist scanned))
+Phosphates : 44 total  →  44 CaOx at P (every phosphate)  + 88 second-row CaOx
+Strands    : 4 (11, 11, 11, 11 P each)
+
+This is NOT cut from Whewellite - xtl.pdb. Order emerges only after
+optional relaxation without COM distance restraints.
+
+Ca–Ca floor along strand: 3.70 Å (COM 3.84 allowed); non-neighbor packing: 6.0 Å.
+Ca–OP target (BV, 6-fold): 2.375 Å
+
+Per-phosphate Ca placement (Å / v.u.)
+  P  162: OP 2.359  2.370   P 2.765  BV(P)=0.69  mode=bidentate
+  P  814: OP 2.363  2.363   P 2.793  BV(P)=0.69  mode=bidentate
+  P  242: OP 2.364  2.367   P 2.766  BV(P)=0.68  mode=bidentate
+  P  285: OP 2.348  2.381   P 2.776  BV(P)=0.69  mode=bidentate
+  P  327: OP 2.365  2.369   P 2.758  BV(P)=0.68  mode=bidentate
+  P  361: OP 2.357  2.368   P 2.787  BV(P)=0.69  mode=bidentate
+  P  386: OP 2.354  2.362   P 2.791  BV(P)=0.70  mode=bidentate
+  P  407: OP 2.355  2.366   P 2.782  BV(P)=0.69  mode=bidentate
+  P    1: OP 2.373  2.375   P 2.759  BV(P)=0.67  mode=bidentate
+  P   23: OP 2.364  2.366   P 2.774  BV(P)=0.69  mode=bidentate
+  P   42: OP 2.359  2.369   P 2.772  BV(P)=0.69  mode=bidentate
+  P  163: OP 2.361  2.368   P 2.764  BV(P)=0.69  mode=bidentate
+  P  206: OP 2.363  2.363   P 2.793  BV(P)=0.69  mode=bidentate
+  P  243: OP 2.364  2.367   P 2.767  BV(P)=0.68  mode=bidentate
+  P  286: OP 2.348  2.381   P 2.776  BV(P)=0.69  mode=bidentate
+  P  328: OP 2.367  2.368   P 2.759  BV(P)=0.68  mode=bidentate
+  P  825: OP 2.357  2.368   P 2.787  BV(P)=0.69  mode=bidentate
+  P  840: OP 2.355  2.362   P 2.790  BV(P)=0.70  mode=bidentate
+  P  859: OP 2.355  2.366   P 2.782  BV(P)=0.69  mode=bidentate
+  P  877: OP 2.372  2.376   P 2.760  BV(P)=0.67  mode=bidentate
+  P  431: OP 2.364  2.367   P 2.775  BV(P)=0.69  mode=bidentate
+  P  447: OP 2.359  2.369   P 2.771  BV(P)=0.69  mode=bidentate
+  P  768: OP 2.108  2.296   P 2.595  BV(P)=0.68  mode=bidentate
+  P  735: OP 2.365  2.365   P 2.785  BV(P)=0.69  mode=bidentate
+  P  705: OP 2.364  2.372   P 2.789  BV(P)=0.68  mode=bidentate
+  P  681: OP 2.360  2.363   P 2.787  BV(P)=0.69  mode=bidentate
+  P  656: OP 2.355  2.368   P 2.775  BV(P)=0.69  mode=bidentate
+  P  623: OP 2.363  2.364   P 2.767  BV(P)=0.69  mode=bidentate
+  P  581: OP 2.358  2.368   P 2.788  BV(P)=0.69  mode=bidentate
+  P  539: OP 2.361  2.369   P 2.787  BV(P)=0.69  mode=bidentate
+  P  121: OP 2.352  2.372   P 2.771  BV(P)=0.69  mode=bidentate
+  P  102: OP 2.368  2.370   P 2.764  BV(P)=0.68  mode=bidentate
+  P   80: OP 2.355  2.371   P 2.786  BV(P)=0.69  mode=bidentate
+  P  769: OP 2.358  2.374   P 2.791  BV(P)=0.68  mode=bidentate
+  P  970: OP 2.364  2.365   P 2.785  BV(P)=0.69  mode=bidentate
+  P  956: OP 2.363  2.373   P 2.789  BV(P)=0.68  mode=bidentate
+  P  942: OP 2.361  2.362   P 2.788  BV(P)=0.69  mode=bidentate
+  P  927: OP 2.356  2.367   P 2.774  BV(P)=0.69  mode=bidentate
+  P  624: OP 2.364  2.364   P 2.767  BV(P)=0.69  mode=bidentate
+  P  582: OP 2.358  2.367   P 2.789  BV(P)=0.69  mode=bidentate
+  P  540: OP 2.416  2.675   P 2.998  BV(P)=0.69  mode=bidentate
+  P  504: OP 2.353  2.371   P 2.771  BV(P)=0.69  mode=bidentate
+  P  486: OP 2.367  2.371   P 2.765  BV(P)=0.68  mode=bidentate
+  P  914: OP 2.355  2.371   P 2.787  BV(P)=0.69  mode=bidentate
+  P  162: OP 5.667  7.766   P 7.122  BV(P)=0.00  mode=?
+  P  162: OP 8.585  10.528   P 9.953  BV(P)=0.00  mode=?
+  P  814: OP 4.944  6.885   P 5.967  BV(P)=0.00  mode=?
+  P  814: OP 6.126  6.220   P 6.717  BV(P)=0.00  mode=?
+  P  242: OP 8.159  8.878   P 9.161  BV(P)=0.00  mode=?
+  P  242: OP 7.212  9.275   P 8.630  BV(P)=0.00  mode=?
+  P  285: OP 5.653  7.616   P 6.920  BV(P)=0.00  mode=?
+  P  285: OP 7.703  9.284   P 8.869  BV(P)=0.00  mode=?
+  P  327: OP 8.593  10.056   P 9.633  BV(P)=0.00  mode=?
+  P  327: OP 6.851  7.888   P 7.916  BV(P)=0.00  mode=?
+  P  361: OP 6.045  7.703   P 7.368  BV(P)=0.00  mode=?
+  P  361: OP 7.345  7.417   P 7.985  BV(P)=0.00  mode=?
+  P  386: OP 5.395  6.585   P 6.244  BV(P)=0.00  mode=?
+  P  386: OP 7.681  8.316   P 7.768  BV(P)=0.00  mode=?
+  P  407: OP 5.611  7.822   P 7.080  BV(P)=0.00  mode=?
+  P  407: OP 8.399  10.263   P 9.633  BV(P)=0.00  mode=?
+  P    1: OP 6.238  8.345   P 7.508  BV(P)=0.00  mode=?
+  P    1: OP 6.966  9.102   P 8.440  BV(P)=0.00  mode=?
+  P   23: OP 8.640  9.944   P 9.893  BV(P)=0.00  mode=?
+  P   23: OP 7.218  8.856   P 8.157  BV(P)=0.00  mode=?
+  P   42: OP 6.154  6.460   P 6.525  BV(P)=0.00  mode=?
+  P   42: OP 9.973  10.579   P 10.952  BV(P)=0.00  mode=?
+  P  163: OP 7.737  10.199   P 9.099  BV(P)=0.00  mode=?
+  P  163: OP 7.812  8.720   P 8.654  BV(P)=0.00  mode=?
+  P  206: OP 4.229  6.424   P 5.129  BV(P)=0.00  mode=?
+  P  206: OP 8.623  8.910   P 9.289  BV(P)=0.00  mode=?
+  P  243: OP 7.747  8.246   P 8.537  BV(P)=0.00  mode=?
+  P  243: OP 7.585  9.653   P 9.013  BV(P)=0.00  mode=?
+  P  286: OP 7.025  7.253   P 7.694  BV(P)=0.00  mode=?
+  P  286: OP 4.154  4.801   P 4.603  BV(P)=0.00  mode=?
+  P  328: OP 4.028  5.340   P 4.931  BV(P)=0.00  mode=?
+  P  328: OP 6.948  8.001   P 7.975  BV(P)=0.00  mode=?
+  P  825: OP 6.842  7.072   P 7.609  BV(P)=0.00  mode=?
+  P  825: OP 4.997  6.328   P 6.238  BV(P)=0.00  mode=?
+  P  840: OP 8.556  8.809   P 8.952  BV(P)=0.00  mode=?
+  P  840: OP 6.233  6.959   P 7.194  BV(P)=0.00  mode=?
+  P  859: OP 5.416  5.466   P 5.853  BV(P)=0.00  mode=?
+  P  859: OP 7.348  8.062   P 8.337  BV(P)=0.00  mode=?
+  P  877: OP 6.239  7.189   P 7.136  BV(P)=0.00  mode=?
+  P  877: OP 9.142  9.465   P 9.549  BV(P)=0.00  mode=?
+  P  431: OP 4.170  4.708   P 4.572  BV(P)=0.00  mode=?
+  P  431: OP 9.807  10.061   P 10.471  BV(P)=0.00  mode=?
+  P  447: OP 8.387  8.844   P 9.086  BV(P)=0.00  mode=?
+  P  447: OP 7.215  8.072   P 8.035  BV(P)=0.00  mode=?
+  P  768: OP 6.574  8.906   P 7.598  BV(P)=0.00  mode=?
+  P  768: OP 5.208  5.723   P 5.804  BV(P)=0.00  mode=?
+  P  735: OP 10.096  11.091   P 11.186  BV(P)=0.00  mode=?
+  P  735: OP 5.615  6.431   P 6.623  BV(P)=0.00  mode=?
+  P  705: OP 7.621  7.773   P 7.631  BV(P)=0.00  mode=?
+  P  705: OP 7.818  8.937   P 9.002  BV(P)=0.00  mode=?
+  P  681: OP 4.492  6.459   P 5.926  BV(P)=0.00  mode=?
+  P  681: OP 8.331  9.276   P 9.229  BV(P)=0.00  mode=?
+  P  656: OP 9.350  9.378   P 9.780  BV(P)=0.00  mode=?
+  P  656: OP 6.366  8.232   P 7.522  BV(P)=0.00  mode=?
+  P  623: OP 8.583  10.323   P 9.897  BV(P)=0.00  mode=?
+  P  623: OP 9.886  10.790   P 10.840  BV(P)=0.00  mode=?
+  P  581: OP 8.142  9.045   P 9.227  BV(P)=0.00  mode=?
+  P  581: OP 7.029  9.174   P 8.488  BV(P)=0.00  mode=?
+  P  539: OP 4.338  5.625   P 4.996  BV(P)=0.00  mode=?
+  P  539: OP 6.861  9.368   P 8.135  BV(P)=0.00  mode=?
+  P  121: OP 10.241  10.863   P 11.110  BV(P)=0.00  mode=?
+  P  121: OP 6.968  7.529   P 7.831  BV(P)=0.00  mode=?
+  P  102: OP 9.287  9.601   P 10.093  BV(P)=0.00  mode=?
+  P  102: OP 8.075  10.168   P 9.523  BV(P)=0.00  mode=?
+  P   80: OP 7.224  8.374   P 8.283  BV(P)=0.00  mode=?
+  P   80: OP 3.469  5.431   P 4.735  BV(P)=0.00  mode=?
+  P  769: OP 4.642  6.562   P 5.900  BV(P)=0.00  mode=?
+  P  769: OP 8.543  9.097   P 9.467  BV(P)=0.00  mode=?
+  P  970: OP 10.769  10.974   P 11.575  BV(P)=0.00  mode=?
+  P  970: OP 7.088  7.601   P 8.008  BV(P)=0.00  mode=?
+  P  956: OP 7.112  8.534   P 8.406  BV(P)=0.00  mode=?
+  P  956: OP 6.709  8.867   P 7.412  BV(P)=0.00  mode=?
+  P  942: OP 4.532  4.911   P 4.939  BV(P)=0.00  mode=?
+  P  942: OP 6.117  7.296   P 7.306  BV(P)=0.00  mode=?
+  P  927: OP 7.306  9.807   P 8.590  BV(P)=0.00  mode=?
+  P  927: OP 7.186  7.219   P 7.179  BV(P)=0.00  mode=?
+  P  624: OP 9.331  9.691   P 10.175  BV(P)=0.00  mode=?
+  P  624: OP 10.467  10.701   P 11.242  BV(P)=0.00  mode=?
+  P  582: OP 7.624  7.724   P 8.238  BV(P)=0.00  mode=?
+  P  582: OP 8.657  9.971   P 9.874  BV(P)=0.00  mode=?
+  P  540: OP 8.738  10.625   P 10.175  BV(P)=0.00  mode=?
+  P  540: OP 10.699  11.064   P 11.583  BV(P)=0.00  mode=?
+  P  504: OP 9.136  9.792   P 10.033  BV(P)=0.00  mode=?
+  P  504: OP 7.114  9.205   P 8.486  BV(P)=0.00  mode=?
+  P  486: OP 6.746  9.096   P 8.215  BV(P)=0.00  mode=?
+  P  486: OP 7.573  8.425   P 8.398  BV(P)=0.00  mode=?
+  P  914: OP 8.935  9.712   P 9.828  BV(P)=0.00  mode=?
+  P  914: OP 5.856  6.337   P 6.733  BV(P)=0.00  mode=?
+
+Sequential Ca–Ca along strands (Å)  [DNA P–P is ~6.2–7.0; not forced]
+  Strand 1:
+    Ca@ 162 – Ca@ 814    7.995  HIGH
+    Ca@ 814 – Ca@ 242    7.143  OK
+    Ca@ 242 – Ca@ 285    7.430  OK
+    Ca@ 285 – Ca@ 327    9.468  HIGH
+    Ca@ 327 – Ca@ 361    8.406  HIGH
+    Ca@ 361 – Ca@ 386    6.960  OK
+    Ca@ 386 – Ca@ 407    8.545  HIGH
+    Ca@ 407 – Ca@   1    8.005  HIGH
+    Ca@   1 – Ca@  23    6.958  OK
+    Ca@  23 – Ca@  42    9.944  HIGH
+  Strand 2:
+    Ca@ 163 – Ca@ 206    7.994  HIGH
+    Ca@ 206 – Ca@ 243    7.146  OK
+    Ca@ 243 – Ca@ 286    7.431  OK
+    Ca@ 286 – Ca@ 328    9.465  HIGH
+    Ca@ 328 – Ca@ 825    8.406  HIGH
+    Ca@ 825 – Ca@ 840    6.962  OK
+    Ca@ 840 – Ca@ 859    8.543  HIGH
+    Ca@ 859 – Ca@ 877    8.010  HIGH
+    Ca@ 877 – Ca@ 431    6.957  OK
+    Ca@ 431 – Ca@ 447    9.942  HIGH
+  Strand 3:
+    Ca@ 768 – Ca@ 735    8.787  HIGH
+    Ca@ 735 – Ca@ 705    6.828  OK
+    Ca@ 705 – Ca@ 681    6.727  OK
+    Ca@ 681 – Ca@ 656    8.024  HIGH
+    Ca@ 656 – Ca@ 623    7.983  HIGH
+    Ca@ 623 – Ca@ 581    7.985  HIGH
+    Ca@ 581 – Ca@ 539    8.200  HIGH
+    Ca@ 539 – Ca@ 121    9.293  HIGH
+    Ca@ 121 – Ca@ 102    7.444  OK
+    Ca@ 102 – Ca@  80    8.259  HIGH
+  Strand 4:
+    Ca@ 769 – Ca@ 970    8.878  HIGH
+    Ca@ 970 – Ca@ 956    6.826  OK
+    Ca@ 956 – Ca@ 942    6.726  OK
+    Ca@ 942 – Ca@ 927    8.023  HIGH
+    Ca@ 927 – Ca@ 624    7.984  HIGH
+    Ca@ 624 – Ca@ 582    7.984  HIGH
+    Ca@ 582 – Ca@ 540    8.381  HIGH
+    Ca@ 540 – Ca@ 504    9.212  HIGH
+    Ca@ 504 – Ca@ 486    7.445  OK
+    Ca@ 486 – Ca@ 914    8.259  HIGH
+
+Ca–Ca sequential: n=40  min=6.726  median=8.000  max=9.944
+
+Median BV from phosphate O only: 0.00 v.u.
+(Full Ca2+ balance needs oxalate + water; target total = 2.0 v.u.)
+Coat: 44 P-bound CaOx + 88 extra CaOx + 200 extra water O (not a 30 A shell).
+
+Sterics (rigid units)
+  Ca–Ca < 3.7 Å: 0
+  Inter-residue O–O < 2.0 Å: 5  (min 1.749)

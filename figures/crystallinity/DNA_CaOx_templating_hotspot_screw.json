@@ -1,0 +1,853 @@
+{
+  "n_ca": 132,
+  "n_hot": 44,
+  "n_seed": 89,
+  "n_cluster": 9,
+  "phosphate": {
+    "twist": 28.232431639165533,
+    "rise": 4.251439513954578,
+    "pp": 6.701286070178319,
+    "n_step": 22,
+    "twist_mean": 31.01404439611887,
+    "rise_mean": 4.0118666057616466
+  },
+  "map_tol_A": 1.2,
+  "sets": {
+    "hotspots": {
+      "ops": [
+        {
+          "name": "DNA screw 1-step",
+          "frac": 0.022727272727272728,
+          "n": 1,
+          "kind": "screw"
+        },
+        {
+          "name": "DNA screw 2-step",
+          "frac": 0.022727272727272728,
+          "n": 1,
+          "kind": "screw"
+        },
+        {
+          "name": "textbook 36\u00b0 / 3.38 \u00c5",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "2_1 (period 6.29 \u00c5)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "2_1 (period 2\u00d7P rise)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "glide az=70\u00b0 t=4.25 \u00c5",
+          "frac": 0.045454545454545456,
+          "n": 2,
+          "kind": "glide",
+          "az": 70.0,
+          "t": 4.251439513954578
+        },
+        {
+          "name": "C2 perp az=160\u00b0",
+          "frac": 0.045454545454545456,
+          "n": 2,
+          "kind": "dyad",
+          "az": 160.0
+        }
+      ],
+      "pairs": {
+        "dna1": 6,
+        "dna2": 9,
+        "screw21": 2,
+        "dyad": 0,
+        "com384": 7,
+        "com629": 16,
+        "cyl": 397,
+        "n_pairs": 946
+      },
+      "null": {
+        "dna1": {
+          "mean": 3.8925,
+          "p95": 7.0
+        },
+        "dna2": {
+          "mean": 8.15,
+          "p95": 13.0
+        },
+        "screw21": {
+          "mean": 3.7225,
+          "p95": 7.0
+        },
+        "dyad": {
+          "mean": 1.21,
+          "p95": 3.0
+        }
+      }
+    },
+    "P-bound seeds": {
+      "ops": [
+        {
+          "name": "DNA screw 1-step",
+          "frac": 0.056179775280898875,
+          "n": 5,
+          "kind": "screw"
+        },
+        {
+          "name": "DNA screw 2-step",
+          "frac": 0.011235955056179775,
+          "n": 1,
+          "kind": "screw"
+        },
+        {
+          "name": "textbook 36\u00b0 / 3.38 \u00c5",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "2_1 (period 6.29 \u00c5)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "2_1 (period 2\u00d7P rise)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "glide az=30\u00b0 t=8.50 \u00c5",
+          "frac": 0.0449438202247191,
+          "n": 4,
+          "kind": "glide",
+          "az": 30.0,
+          "t": 8.502879027909156
+        },
+        {
+          "name": "C2 perp az=120\u00b0",
+          "frac": 0.0449438202247191,
+          "n": 4,
+          "kind": "dyad",
+          "az": 120.0
+        }
+      ],
+      "pairs": {
+        "dna1": 29,
+        "dna2": 28,
+        "screw21": 5,
+        "dyad": 3,
+        "com384": 7,
+        "com629": 21,
+        "cyl": 1546,
+        "n_pairs": 3916
+      },
+      "null": {
+        "dna1": {
+          "mean": 14.05,
+          "p95": 20.0
+        },
+        "dna2": {
+          "mean": 21.115,
+          "p95": 28.0
+        },
+        "screw21": {
+          "mean": 12.3475,
+          "p95": 18.0
+        },
+        "dyad": {
+          "mean": 6.2675,
+          "p95": 10.0
+        }
+      }
+    },
+    "hot \u2229 seed": {
+      "ops": [
+        {
+          "name": "DNA screw 1-step",
+          "frac": 0.02857142857142857,
+          "n": 1,
+          "kind": "screw"
+        },
+        {
+          "name": "DNA screw 2-step",
+          "frac": 0.02857142857142857,
+          "n": 1,
+          "kind": "screw"
+        },
+        {
+          "name": "textbook 36\u00b0 / 3.38 \u00c5",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "2_1 (period 6.29 \u00c5)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "2_1 (period 2\u00d7P rise)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "glide az=70\u00b0 t=4.25 \u00c5",
+          "frac": 0.05714285714285714,
+          "n": 2,
+          "kind": "glide",
+          "az": 70.0,
+          "t": 4.251439513954578
+        },
+        {
+          "name": "C2 perp az=160\u00b0",
+          "frac": 0.05714285714285714,
+          "n": 2,
+          "kind": "dyad",
+          "az": 160.0
+        }
+      ],
+      "pairs": {
+        "dna1": 6,
+        "dna2": 9,
+        "screw21": 2,
+        "dyad": 0,
+        "com384": 6,
+        "com629": 8,
+        "cyl": 257,
+        "n_pairs": 595
+      },
+      "null": {
+        "dna1": {
+          "mean": 3.51,
+          "p95": 7.0
+        },
+        "dna2": {
+          "mean": 5.385,
+          "p95": 9.0
+        },
+        "screw21": {
+          "mean": 2.7125,
+          "p95": 6.0
+        },
+        "dyad": {
+          "mean": 0.7325,
+          "p95": 2.0
+        }
+      }
+    }
+  },
+  "clusters": [
+    {
+      "id": 1,
+      "n": 3,
+      "mean_dp": 4.089333333333333,
+      "mean_z": -8.54956553852383,
+      "mean_r": 10.745924192730982,
+      "phi_span": 39.45113610237232,
+      "z_span": 3.3784065299269344,
+      "nn_med": 4.370813883019959,
+      "nn_min": 4.370813883019959,
+      "dna1": 0,
+      "dna2": 0,
+      "screw21": 0,
+      "dyad": 0,
+      "com384": 0,
+      "com629": 1,
+      "best_op": "glide az=0\u00b0 t=3.15 \u00c5",
+      "best_frac": 0.3333333333333333,
+      "best_n": 1,
+      "ops": [
+        {
+          "name": "DNA screw 1-step",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "DNA screw 2-step",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "textbook 36\u00b0 / 3.38 \u00c5",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "2_1 (period 6.29 \u00c5)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "2_1 (period 2\u00d7P rise)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "glide az=0\u00b0 t=3.15 \u00c5",
+          "frac": 0.3333333333333333,
+          "n": 1,
+          "kind": "glide",
+          "az": 0.0,
+          "t": 3.145
+        },
+        {
+          "name": "C2 perp. helix (best)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "dyad",
+          "az": null
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "n": 6,
+      "mean_dp": 5.690666666666666,
+      "mean_z": 20.179695792356643,
+      "mean_r": 12.604709204031392,
+      "phi_span": 20.33536608866956,
+      "z_span": 8.465805530359047,
+      "nn_med": 5.327763149508753,
+      "nn_min": 4.128994187450498,
+      "dna1": 1,
+      "dna2": 0,
+      "screw21": 0,
+      "dyad": 0,
+      "com384": 0,
+      "com629": 2,
+      "best_op": "glide az=120\u00b0 t=6.29 \u00c5",
+      "best_frac": 0.16666666666666666,
+      "best_n": 1,
+      "ops": [
+        {
+          "name": "DNA screw 1-step",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "DNA screw 2-step",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "textbook 36\u00b0 / 3.38 \u00c5",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "2_1 (period 6.29 \u00c5)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "2_1 (period 2\u00d7P rise)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "glide az=120\u00b0 t=6.29 \u00c5",
+          "frac": 0.16666666666666666,
+          "n": 1,
+          "kind": "glide",
+          "az": 120.0,
+          "t": 6.29
+        },
+        {
+          "name": "C2 perp. helix (best)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "dyad",
+          "az": null
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "n": 7,
+      "mean_dp": 5.202,
+      "mean_z": 14.368334540364044,
+      "mean_r": 15.504615428718607,
+      "phi_span": 56.35379167717147,
+      "z_span": 12.08428276117041,
+      "nn_med": 4.325471188205975,
+      "nn_min": 3.8418205319874086,
+      "dna1": 2,
+      "dna2": 1,
+      "screw21": 0,
+      "dyad": 0,
+      "com384": 1,
+      "com629": 2,
+      "best_op": "DNA screw 1-step",
+      "best_frac": 0.14285714285714285,
+      "best_n": 1,
+      "ops": [
+        {
+          "name": "DNA screw 1-step",
+          "frac": 0.14285714285714285,
+          "n": 1,
+          "kind": "screw"
+        },
+        {
+          "name": "DNA screw 2-step",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "textbook 36\u00b0 / 3.38 \u00c5",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "2_1 (period 6.29 \u00c5)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "2_1 (period 2\u00d7P rise)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "glide (best plane)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "glide",
+          "az": null,
+          "t": null
+        },
+        {
+          "name": "C2 perp. helix (best)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "dyad",
+          "az": null
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "n": 4,
+      "mean_dp": 6.0355,
+      "mean_z": 0.8290947185012763,
+      "mean_r": 12.6536572450319,
+      "phi_span": 54.5633376017263,
+      "z_span": 6.021259460148507,
+      "nn_med": 5.0646834136403145,
+      "nn_min": 4.0612147197605815,
+      "dna1": 1,
+      "dna2": 0,
+      "screw21": 0,
+      "dyad": 0,
+      "com384": 1,
+      "com629": 1,
+      "best_op": "DNA screw 1-step",
+      "best_frac": 0.0,
+      "best_n": 0,
+      "ops": [
+        {
+          "name": "DNA screw 1-step",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "DNA screw 2-step",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "textbook 36\u00b0 / 3.38 \u00c5",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "2_1 (period 6.29 \u00c5)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "2_1 (period 2\u00d7P rise)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "glide (best plane)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "glide",
+          "az": null,
+          "t": null
+        },
+        {
+          "name": "C2 perp. helix (best)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "dyad",
+          "az": null
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "n": 5,
+      "mean_dp": 5.302199999999999,
+      "mean_z": -13.238317414759095,
+      "mean_r": 15.104922136456167,
+      "phi_span": 40.734105848443505,
+      "z_span": 9.982406861287277,
+      "nn_med": 4.213979710440002,
+      "nn_min": 3.9966170694726313,
+      "dna1": 0,
+      "dna2": 0,
+      "screw21": 0,
+      "dyad": 0,
+      "com384": 1,
+      "com629": 2,
+      "best_op": "glide az=160\u00b0 t=4.25 \u00c5",
+      "best_frac": 0.2,
+      "best_n": 1,
+      "ops": [
+        {
+          "name": "DNA screw 1-step",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "DNA screw 2-step",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "textbook 36\u00b0 / 3.38 \u00c5",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "2_1 (period 6.29 \u00c5)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "2_1 (period 2\u00d7P rise)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "glide az=160\u00b0 t=4.25 \u00c5",
+          "frac": 0.2,
+          "n": 1,
+          "kind": "glide",
+          "az": 160.0,
+          "t": 4.251439513954578
+        },
+        {
+          "name": "C2 perp. helix (best)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "dyad",
+          "az": null
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "n": 4,
+      "mean_dp": 7.318,
+      "mean_z": -22.13544451448451,
+      "mean_r": 14.47693994600921,
+      "phi_span": 20.94087740185593,
+      "z_span": 7.768532215971177,
+      "nn_med": 6.34471396099596,
+      "nn_min": 6.281545510461576,
+      "dna1": 0,
+      "dna2": 0,
+      "screw21": 0,
+      "dyad": 0,
+      "com384": 0,
+      "com629": 2,
+      "best_op": "DNA screw 1-step",
+      "best_frac": 0.0,
+      "best_n": 0,
+      "ops": [
+        {
+          "name": "DNA screw 1-step",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "DNA screw 2-step",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "textbook 36\u00b0 / 3.38 \u00c5",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "2_1 (period 6.29 \u00c5)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "2_1 (period 2\u00d7P rise)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "glide (best plane)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "glide",
+          "az": null,
+          "t": null
+        },
+        {
+          "name": "C2 perp. helix (best)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "dyad",
+          "az": null
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "n": 3,
+      "mean_dp": 5.279666666666667,
+      "mean_z": -30.781060644481755,
+      "mean_r": 16.147317698246574,
+      "phi_span": 9.86620681869924,
+      "z_span": 6.867865707699469,
+      "nn_med": 4.088764361026446,
+      "nn_min": 4.088764361026446,
+      "dna1": 0,
+      "dna2": 0,
+      "screw21": 0,
+      "dyad": 0,
+      "com384": 1,
+      "com629": 1,
+      "best_op": "DNA screw 1-step",
+      "best_frac": 0.0,
+      "best_n": 0,
+      "ops": [
+        {
+          "name": "DNA screw 1-step",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "DNA screw 2-step",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "textbook 36\u00b0 / 3.38 \u00c5",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "2_1 (period 6.29 \u00c5)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "2_1 (period 2\u00d7P rise)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "glide (best plane)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "glide",
+          "az": null,
+          "t": null
+        },
+        {
+          "name": "C2 perp. helix (best)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "dyad",
+          "az": null
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "n": 4,
+      "mean_dp": 4.59775,
+      "mean_z": 29.486696346707376,
+      "mean_r": 11.030934574324437,
+      "phi_span": 22.964221594743442,
+      "z_span": 5.800420747641557,
+      "nn_med": 3.9370897348526537,
+      "nn_min": 3.8257370531702795,
+      "dna1": 1,
+      "dna2": 0,
+      "screw21": 0,
+      "dyad": 0,
+      "com384": 2,
+      "com629": 2,
+      "best_op": "DNA screw 1-step",
+      "best_frac": 0.0,
+      "best_n": 0,
+      "ops": [
+        {
+          "name": "DNA screw 1-step",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "DNA screw 2-step",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "textbook 36\u00b0 / 3.38 \u00c5",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "2_1 (period 6.29 \u00c5)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "2_1 (period 2\u00d7P rise)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "glide (best plane)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "glide",
+          "az": null,
+          "t": null
+        },
+        {
+          "name": "C2 perp. helix (best)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "dyad",
+          "az": null
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "n": 3,
+      "mean_dp": 5.446000000000001,
+      "mean_z": 2.715982861012321,
+      "mean_r": 17.01432858581202,
+      "phi_span": 8.08520765263853,
+      "z_span": 7.882717900823325,
+      "nn_med": 4.086683007036394,
+      "nn_min": 4.086683007036394,
+      "dna1": 0,
+      "dna2": 0,
+      "screw21": 0,
+      "dyad": 0,
+      "com384": 1,
+      "com629": 1,
+      "best_op": "glide az=30\u00b0 t=8.50 \u00c5",
+      "best_frac": 0.3333333333333333,
+      "best_n": 1,
+      "ops": [
+        {
+          "name": "DNA screw 1-step",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "DNA screw 2-step",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "textbook 36\u00b0 / 3.38 \u00c5",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "screw"
+        },
+        {
+          "name": "2_1 (period 6.29 \u00c5)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "2_1 (period 2\u00d7P rise)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "21"
+        },
+        {
+          "name": "glide az=30\u00b0 t=8.50 \u00c5",
+          "frac": 0.3333333333333333,
+          "n": 1,
+          "kind": "glide",
+          "az": 30.0,
+          "t": 8.502879027909156
+        },
+        {
+          "name": "C2 perp. helix (best)",
+          "frac": 0.0,
+          "n": 0,
+          "kind": "dyad",
+          "az": null
+        }
+      ]
+    }
+  ]
+}

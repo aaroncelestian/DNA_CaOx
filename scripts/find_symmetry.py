@@ -25,6 +25,7 @@ from grow_whewellite import (  # noqa: E402
     rotation_around,
     rotation_from_to,
 )
+from strand_order import format_strand_report, strand_order_metrics  # noqa: E402
 
 PDB = ROOT / "CaOx_whewellite_noDNA.pdb"
 DNA_PDB = ROOT / "DNA_CaOx_whewellite_grown.pdb"
@@ -165,6 +166,8 @@ def helix_axis_radius(pts: np.ndarray, dna_heavy: np.ndarray) -> np.ndarray:
 def phosphate_surface_radius(pxyz: np.ndarray, dna_heavy: np.ndarray) -> float:
     """Median phosphate distance from helix axis — DNA outer envelope."""
     if len(pxyz) == 0:
+        if len(dna_heavy) < 3:
+            return float("nan")
         return float(np.median(helix_axis_radius(dna_heavy, dna_heavy)))
     return float(np.median(helix_axis_radius(pxyz, dna_heavy)))
 
@@ -538,43 +541,12 @@ def upgrade_radial_shell_phases(
     bfac: np.ndarray,
     d_p: np.ndarray,
 ) -> int:
+    """Disabled: bfac 18/22/24/26 are packing-zone tags, not COM order.
+
+    Promoting those Ca to intermediate/crystalline made the saturated
+    shell look nucleated when the whole-coat COM-net score was zero.
     """
-  Label DNA-templated shell zones (bfac 18/22/24 from build_gel_shell) when
-  local COM-net order is partial — restores gel → intermediate → crystal rings.
-    """
-    n_up = 0
-    phases = metrics["phase"]
-    scores = metrics["score"]
-    fa = metrics["frac_a"]
-    fc = metrics["frac_c"]
-    for i in range(len(bfac)):
-        if phases[i] == "crystalline":
-            continue
-        bf = float(bfac[i])
-        dp = float(d_p[i])
-        if abs(bf - BFAC_INTERMEDIATE) < 0.5 and 8.0 <= dp <= 20.0:
-            phases[i] = "intermediate"
-            n_up += 1
-        elif abs(bf - BFAC_PRECRYSTAL) < 0.5 and 14.0 <= dp <= 24.0:
-            phases[i] = "intermediate"
-            n_up += 1
-        elif abs(bf - BFAC_BULK) < 0.5 and 20.0 <= dp <= 30.0:
-            phases[i] = "intermediate"
-            n_up += 1
-        elif abs(bf - BFAC_GEL_COAT) < 0.5 and 3.5 <= dp <= 16.0:
-            if scores[i] >= 0.015 or fa[i] >= 0.025 or fc[i] >= 0.025:
-                phases[i] = "intermediate"
-                n_up += 1
-            if fa[i] >= 0.06 and scores[i] >= 0.08 and dp <= 12.0:
-                phases[i] = "crystalline"
-                n_up += 1
-        elif dp <= 18.0 and scores[i] >= NUCLEATION_SCORE and (
-            fa[i] >= NUCLEATION_AXIS_MIN or fc[i] >= NUCLEATION_AXIS_MIN
-        ):
-            if phases[i] == "amorphous":
-                phases[i] = "intermediate"
-                n_up += 1
-    return n_up
+    return 0
 
 
 def summarize_symmetry_list(vals: list[float], label: str, lines: list[str]):
@@ -980,7 +952,10 @@ def phase_label(sym: dict, d_p: float | None = None) -> str:
 def per_ca_metrics(pts: np.ndarray, pxyz: np.ndarray, patch_r: float = 10.0):
     n = len(pts)
     print(f"Computing per-Ca crystallinity for {n} sites...", flush=True)
-    d_p = np.linalg.norm(pxyz[:, None, :] - pts[None, :, :], axis=2).min(axis=0)
+    if len(pxyz) == 0:
+        d_p = np.full(n, 99.0)
+    else:
+        d_p = np.linalg.norm(pxyz[:, None, :] - pts[None, :, :], axis=2).min(axis=0)
     scores = np.zeros(n)
     frac_a = np.zeros(n)
     frac_c = np.zeros(n)
@@ -1138,15 +1113,21 @@ def run_growth_analysis(
     heatmap_dir: Path,
     sweep_report: Path,
     tag: str | None = None,
+    skip_sweep: bool = False,
 ):
     pts, bfac = load_whw_ca(pdb_path)
-    seeds = load_growth_seed_positions(seed_path)
     pxyz = load_phosphate_xyz(pdb_path)
+    try:
+        seeds = load_growth_seed_positions(seed_path) if seed_path and Path(seed_path).exists() else {}
+    except SystemExit:
+        seeds = {}
+    if not seeds:
+        seeds = {i + 1: pts[i] for i in range(min(4, len(pts)))}
     lines = [
         f"Symmetry + crystallinity map — {pdb_path.name}",
         "=" * 62,
         f"WHW Ca sites: {len(pts)}",
-        f"DNA-bound seeds: {len(seeds)} (from {seed_path.name})",
+        f"DNA-bound seeds: {len(seeds)} (from {getattr(seed_path, 'name', seed_path) or 'Ca positions'})",
         f"Reference COM cell: a={COM_A}  c={COM_C}  beta={COM_BETA}",
         "Strict COM net: map tol "
         f"{TOL:.2f} Å; |v|-a < {LEN_A:.2f}; |v|-c < {LEN_C:.2f}; "
@@ -1174,6 +1155,12 @@ def run_growth_analysis(
     metrics["phase"] = np.asarray(metrics["phase"], dtype=object)
     metrics, n_seed_up, seed_phase = upgrade_crystal_seed_phases(metrics, pts, bfac)
     n_radial = upgrade_radial_shell_phases(metrics, bfac, metrics["d_p"])
+    strand = strand_order_metrics(pdb_path, pts, metrics["d_p"])
+    metrics["strand_id"] = strand["strand_id"]
+    metrics["seq_next_d"] = strand["seq_next_d"]
+    metrics["hit_384"] = strand["hit_384"]
+    metrics["hit_629"] = strand["hit_629"]
+    metrics["p_bound"] = strand["p_bound"]
     com_reg = local_com_registry(pts, radius=10.0)
     pair_score, has_384, has_629, n_com = local_com_pair_correlation(pts)
     metrics["com_registry"] = com_reg
@@ -1210,6 +1197,8 @@ def run_growth_analysis(
             "(partial COM-net + DNA distance)."
         )
         lines.append("")
+    lines.extend(format_strand_report(strand))
+    lines.append("")
     if n_hot:
         lines.append(
             f"Nucleation hotspots (COM pair-corr clusters, r_axis ≥ "
@@ -1243,64 +1232,84 @@ def run_growth_analysis(
     csv_path = heatmap_dir / f"{tag}_ca_metrics.csv"
     with csv_path.open("w") as f:
         f.write(
-            "ca_index,d_p_A,crystallinity,frac_a,frac_c,frac_384,com_registry,pair_corr,hotspot,phase,domain,axial_A,shell_bfac\n"
+            "ca_index,d_p_A,crystallinity,frac_a,frac_c,frac_384,com_registry,pair_corr,"
+            "hotspot,phase,domain,axial_A,shell_bfac,strand_id,seq_next_d,hit_384,hit_629,p_bound\n"
         )
         for i in range(len(pts)):
+            snd = metrics["seq_next_d"][i]
+            snd_s = f"{snd:.3f}" if np.isfinite(snd) else ""
             f.write(
                 f"{i},{metrics['d_p'][i]:.3f},{metrics['score'][i]:.4f},"
                 f"{metrics['frac_a'][i]:.4f},{metrics['frac_c'][i]:.4f},"
                 f"{metrics['frac_384'][i]:.4f},{metrics['com_registry'][i]:.4f},"
                 f"{metrics['pair_corr'][i]:.4f},{int(metrics['hotspot'][i])},"
                 f"{metrics['phase'][i]},"
-                f"{dom_lbl[i]},{axial[i]:.3f},{bfac[i]:.1f}\n"
+                f"{dom_lbl[i]},{axial[i]:.3f},{bfac[i]:.1f},"
+                f"{int(metrics['strand_id'][i])},{snd_s},"
+                f"{int(metrics['hit_384'][i])},{int(metrics['hit_629'][i])},"
+                f"{int(metrics['p_bound'][i])}\n"
             )
     lines.append(f"Per-Ca metrics: {csv_path}")
     lines.append("")
 
-  # radius sweep with 4 growth seeds
-    seed_positions = seeds
-    max_r = max(SWEEP_RADII)
-    xtl_atoms, cryst = parse_atoms(XTL)
-    nmax = max(2, int(math.ceil(max_r / min(cryst["a"], cryst["c"]))) + 1)
-    expanded, (av, bv, cv) = expand_crystal(xtl_atoms, cryst, nmax=nmax)
-    ref = next(a for a in xtl_atoms if a["element"].upper() == "CA")
-
-    lattice_by_seed = {}
-    growth_atoms, _ = parse_atoms(seed_path)
-    strand_cas = [
-        a
-        for a in growth_atoms
-        if a["resname"] == "COM" and a["chain"] == "X" and a["name"].strip().upper() == "CA"
-    ]
-    strand_cas.sort(key=lambda a: a["resseq"])
-    helix_o = np.mean([a["xyz"] for a in strand_cas], axis=0)
-    for i, ca in enumerate(strand_cas):
-        t, out_vec = local_frame(strand_cas, i, helix_o)
-        R1 = rotation_from_to(av, t)
-        best_ang, best_sc = 0.0, -1e9
-        for ang in np.linspace(0, 2 * math.pi, 72, endpoint=False):
-            R = rotation_around(t, ang) @ R1
-            sc = float(np.dot(cv @ R.T, out_vec))
-            if sc > best_sc:
-                best_sc, best_ang = sc, ang
-        R = rotation_around(t, best_ang) @ R1
-        ca_list = []
-        for a in expanded:
-            if a["element"].upper() != "CA":
-                continue
-            xyz = (a["xyz"] - ref["xyz"]) @ R.T + ca["xyz"]
-            if float(np.linalg.norm(xyz - ca["xyz"])) <= max_r + 0.05:
-                ca_list.append(xyz)
-        lattice_by_seed[ca["resseq"]] = np.array(ca_list)
-
-    observed_by_seed = observed_ca_by_seed(seed_positions, pts, max_r)
     dna_heavy = load_dna_heavy(pdb_path)
-    sweep_rows = sweep_growth_radius(
-        seed_positions, lattice_by_seed, observed_by_seed, dna_heavy, SWEEP_RADII
+    do_sweep = (
+        not skip_sweep
+        and seed_path
+        and Path(seed_path).exists()
+        and len(dna_heavy) >= 3
+        and len(pxyz) >= 2
     )
-    sweep_text = format_sweep_report(sweep_rows)
-    sweep_report.write_text(sweep_text)
-    lines.append(sweep_text)
+    if do_sweep:
+        seed_positions = seeds
+        max_r = max(SWEEP_RADII)
+        xtl_atoms, cryst = parse_atoms(XTL)
+        nmax = max(2, int(math.ceil(max_r / min(cryst["a"], cryst["c"]))) + 1)
+        expanded, (av, bv, cv) = expand_crystal(xtl_atoms, cryst, nmax=nmax)
+        ref = next(a for a in xtl_atoms if a["element"].upper() == "CA")
+
+        lattice_by_seed = {}
+        growth_atoms, _ = parse_atoms(seed_path)
+        strand_cas = [
+            a
+            for a in growth_atoms
+            if a["resname"] == "COM"
+            and a["chain"] == "X"
+            and a["name"].strip().upper() == "CA"
+        ]
+        strand_cas.sort(key=lambda a: a["resseq"])
+        if len(strand_cas) >= 2:
+            helix_o = np.mean([a["xyz"] for a in strand_cas], axis=0)
+            for i, ca in enumerate(strand_cas):
+                t, out_vec = local_frame(strand_cas, i, helix_o)
+                R1 = rotation_from_to(av, t)
+                best_ang, best_sc = 0.0, -1e9
+                for ang in np.linspace(0, 2 * math.pi, 72, endpoint=False):
+                    R = rotation_around(t, ang) @ R1
+                    sc = float(np.dot(cv @ R.T, out_vec))
+                    if sc > best_sc:
+                        best_sc, best_ang = sc, ang
+                R = rotation_around(t, best_ang) @ R1
+                ca_list = []
+                for a in expanded:
+                    if a["element"].upper() != "CA":
+                        continue
+                    xyz = (a["xyz"] - ref["xyz"]) @ R.T + ca["xyz"]
+                    if float(np.linalg.norm(xyz - ca["xyz"])) <= max_r + 0.05:
+                        ca_list.append(xyz)
+                lattice_by_seed[ca["resseq"]] = np.array(ca_list)
+
+            observed_by_seed = observed_ca_by_seed(seed_positions, pts, max_r)
+            sweep_rows = sweep_growth_radius(
+                seed_positions, lattice_by_seed, observed_by_seed, dna_heavy, SWEEP_RADII
+            )
+            sweep_text = format_sweep_report(sweep_rows)
+            sweep_report.write_text(sweep_text)
+            lines.append(sweep_text)
+        else:
+            lines.append("Growth-radius sweep skipped (need ≥2 chain-X COM seeds).")
+    else:
+        lines.append("Growth-radius sweep skipped (no DNA layer, or --skip-sweep).")
 
     text = "\n".join(lines) + "\n"
     report_path.write_text(text)
@@ -1542,6 +1551,11 @@ def main():
         help="Output name prefix for reports and figures (default: PDB stem)",
     )
     ap.add_argument(
+        "--skip-sweep",
+        action="store_true",
+        help="Skip the oriented-lattice growth-radius sweep (thin gel / no-DNA).",
+    )
+    ap.add_argument(
         "--relabel",
         action="store_true",
         help="Rewrite phase column in existing *_ca_metrics.csv using current cuts "
@@ -1569,7 +1583,9 @@ def main():
     tag = args.tag or pdb.stem
     report = ROOT / f"{tag}_symmetry.txt"
     sweep = ROOT / f"{tag}_symmetry_sweep.txt"
-    run_growth_analysis(pdb, args.seeds, report, args.heatmap_dir, sweep, tag=tag)
+    run_growth_analysis(
+        pdb, args.seeds, report, args.heatmap_dir, sweep, tag=tag, skip_sweep=args.skip_sweep
+    )
 
 
 if __name__ == "__main__":

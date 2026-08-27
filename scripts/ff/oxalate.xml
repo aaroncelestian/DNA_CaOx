@@ -1,0 +1,33 @@
+<ForceField>
+  <AtomTypes>
+    <Type name="oxl-C" class="oxlC" element="C" mass="12.011"/>
+    <Type name="oxl-O" class="oxlO" element="O" mass="15.999"/>
+  </AtomTypes>
+  <Residues>
+    <Residue name="OXL">
+      <Atom name="C1" type="oxl-C" charge="0.74"/>
+      <Atom name="C2" type="oxl-C" charge="0.74"/>
+      <Atom name="O1" type="oxl-O" charge="-0.87"/>
+      <Atom name="O2" type="oxl-O" charge="-0.87"/>
+      <Atom name="O3" type="oxl-O" charge="-0.87"/>
+      <Atom name="O4" type="oxl-O" charge="-0.87"/>
+      <Bond atomName1="C1" atomName2="C2"/>
+      <Bond atomName1="C1" atomName2="O1"/>
+      <Bond atomName1="C1" atomName2="O2"/>
+      <Bond atomName1="C2" atomName2="O3"/>
+      <Bond atomName1="C2" atomName2="O4"/>
+    </Residue>
+  </Residues>
+  <HarmonicBondForce>
+    <Bond class1="oxlC" class2="oxlC" length="0.156" k="220000.0"/>
+    <Bond class1="oxlC" class2="oxlO" length="0.126" k="380000.0"/>
+  </HarmonicBondForce>
+  <HarmonicAngleForce>
+    <Angle class1="oxlO" class2="oxlC" class3="oxlC" angle="2.0944" k="500.0"/>
+    <Angle class1="oxlO" class2="oxlC" class3="oxlO" angle="2.1817" k="500.0"/>
+  </HarmonicAngleForce>
+  <NonbondedForce coulomb14scale="0.833333" lj14scale="0.5">
+    <Atom type="oxl-C" charge="0.74" sigma="0.34" epsilon="0.36"/>
+    <Atom type="oxl-O" charge="-0.87" sigma="0.296" epsilon="0.88"/>
+  </NonbondedForce>
+</ForceField>
