@@ -1,0 +1,59 @@
+Whewellite crystallite on DNA_CaOx_growth (8A_allP cut)
+============================================================
+Input          : DNA_CaOx_growth.pdb
+Crystal source : Whewellite - xtl.pdb
+Cell images    : nmax=3 (28812 symmetry copies)
+Seeds          : 22 COM Ca, one per phosphate on both strands
+Cut            : union of 8.0 Å spheres around 22 seed Ca
+DNA length     : 43.3 Å
+DNA radial env.: 12.0 Å from helix axis
+
+B-factor on WHW encodes phosphate-distance shell: 6, 10, 20, 30, 40 Å.
+
+Removed COM seed atoms     : 40
+Removed clashing waters    : 78 / 88 molecules
+Free ions kept             : Na 4/22, Ca 3/8, oxalate 1/8
+Waters kept                : 10 molecules
+
+Crystallite atoms          : 3057  (Ca 297, H 0)
+Multi-seed lattice sites   : 545 atom clusters, 32 Ca
+Total atoms in output PDB  : 3586
+
+Distance from phosphate backbone (Ca → P min distance):
+  0-6 A gel (backbone-attached)  Ca  129  (multi-seed sites 23)
+  6-10 A inner shell            Ca  159  (multi-seed sites 9)
+  10-20 A bulk-like (~2 c-steps)  Ca    9  (multi-seed sites 0)
+  20-30 A outer slab            Ca    0  (multi-seed sites 0)
+
+Outward c-steps from nearest seed (c ≈ 10.1 Å):
+  c-step  0  :  294 Ca
+  c-step  1  :    3 Ca
+
+Interpretation (templating zones):
+  0-6 Å    disordered hydrated gel — backbone-attached
+  ~10 Å    local whewellite symmetry (~1 c-step)
+  ~20 Å    bulk-like slab (~2 c-steps); outer edge may peel
+  ~30 Å    cross-seed lattice continuity may appear
+
+COM reference Ca–Ca (periodic):
+    3.843 Å   (x24)
+    6.273 Å   (x64)
+    6.681 Å   (x4)
+    6.881 Å   (x8)
+    7.277 Å   (x32)
+    7.603 Å   (x20)
+    7.878 Å   (x8)
+    8.228 Å   (x24)
+    9.576 Å   (x60)
+    9.937 Å   (x48)
+
+Ca–Ca in model (≤ 10 Å):
+   3.84 Å ±0.30 : 261 pairs
+   6.29 Å ±0.30 : 463 pairs
+   6.68 Å ±0.30 : 159 pairs
+   6.88 Å ±0.30 : 222 pairs
+   7.28 Å ±0.30 : 381 pairs
+  n pairs=3201  min=3.50  max=10.00
+
+Output: DNA_CaOx_growth_whewellite8A_allP.pdb
+Zones : DNA_CaOx_growth_whewellite8A_allP_zones.txt

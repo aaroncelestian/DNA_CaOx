@@ -1,0 +1,27 @@
+Rigid-body WHW relaxation
+==================================================
+Input  : DNA_CaOx_growth_whewellite30A.pdb
+Output : DNA_CaOx_growth_whewellite30A_relaxed.pdb
+Units  : 1605 WHW Ca sites (repartitioned ligands)
+Moves  : 540 accepted (up to 1 passes)
+
+Inter-residue O-O (WHW only):
+  before: n=34624  min=0.850 A
+  after : n=37618  min=0.817 A
+
+Worst pairs remaining (<= 15):
+  0.817 A  WHW 1231 -- WHW 1239
+  0.817 A  WHW 1231 -- WHW 1239
+  0.817 A  WHW 1231 -- WHW 1239
+  0.817 A  WHW 1231 -- WHW 1239
+  0.881 A  WHW 1047 -- WHW 1153
+  0.881 A  WHW 1047 -- WHW 1153
+  0.881 A  WHW 1047 -- WHW 1153
+  0.881 A  WHW 1047 -- WHW 1153
+  0.898 A  WHW 596 -- WHW 639
+  0.898 A  WHW 596 -- WHW 639
+  0.898 A  WHW 596 -- WHW 639
+  0.898 A  WHW 596 -- WHW 639
+  0.949 A  WHW 631 -- WHW 753
+  0.949 A  WHW 631 -- WHW 753
+  0.949 A  WHW 631 -- WHW 753

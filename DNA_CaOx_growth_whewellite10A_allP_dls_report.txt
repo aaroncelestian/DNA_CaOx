@@ -1,0 +1,23 @@
+Distance least-squares — CaOx / WHW only (DNA fixed)
+==============================================================
+Input     : DNA_CaOx_growth_whewellite10A_allP_relaxed.pdb
+Output    : DNA_CaOx_growth_whewellite10A_allP_dls.pdb
+WHW atoms : 5151 -> 4910 (after same-element merge 1.15 Å)
+Groups    : 362 oxalate (C2O4 DLS), 507 Ca, 1397 water O
+L-BFGS    : nit=80  STOP: TOTAL NO. of ITERATIONS REACHED LIMIT
+
+Restraints:
+  O···O one-sided target 2.40 Å  (weight 80.0)
+  Ca···Ca one-sided min 3.50 Å, COM targets (3.843, 6.273, 6.29)
+  Intra-oxalate distances from the starting C2O4 geometry
+  Ca–O keep starting coordination
+  Positional anchors ±1.60 Å from start
+  DNA coordinates unchanged; WHW–DNA exclusion 2.20 Å
+
+Inter-group O···O < 2.00 Å:
+  before: n=1150  min=1.1538753182211667
+  after : n=0  min=None
+
+Most of the CrystalMaker shorts were overlapping lattice images from
+the four DNA-seed orientations. Same-element merge collapses those;
+DLS uncrosses the rest under a displacement cap so DNA stays put.

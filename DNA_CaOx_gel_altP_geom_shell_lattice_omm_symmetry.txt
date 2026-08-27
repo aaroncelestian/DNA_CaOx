@@ -1,0 +1,68 @@
+Symmetry + crystallinity map — DNA_CaOx_gel_altP_geom_shell_lattice_omm.pdb
+==============================================================
+WHW Ca sites: 849
+DNA-bound seeds: 24 (from DNA_CaOx_gel_altP_geom_seeds.pdb)
+Reference COM cell: a=6.29  c=10.116  beta=109.46
+Strict COM net: map tol 0.25 Å; |v|-a < 0.20; |v|-c < 0.25; |v|-3.84 < 0.15; β within 10° of 70.5°.
+Crystalline: strongest COM-net pocket (a + 3.84 Å, score ≥ 0.22). Intermediate: nucleation site / partial COM order (score ≥ 0.10 or weak axis ≥ 0.05).
+
+Spatial domains (Ca clusters): 1
+  domain 1: 849 Ca  cryst_idx=0.00  a=0.00 c=0.00 384=0.00
+
+Radial shell zones (bfac 18/22/24): 363 Ca tagged as nucleation sites (partial COM-net + DNA distance).
+
+Nucleation hotspots (COM pair-corr clusters, r_axis ≥ 8.7 Å, interior core only): 55 Ca in 13 clusters (6 within 12 Å of P).
+  cluster 1: n=8  d_P≈10.2 Å  pair-corr=0.82
+  cluster 2: n=5  d_P≈18.5 Å  pair-corr=0.48
+  cluster 3: n=4  d_P≈20.1 Å  pair-corr=0.46
+  cluster 4: n=3  d_P≈15.4 Å  pair-corr=0.60
+  cluster 5: n=5  d_P≈15.7 Å  pair-corr=0.60
+  cluster 6: n=4  d_P≈20.9 Å  pair-corr=0.65
+  cluster 7: n=4  d_P≈15.8 Å  pair-corr=0.38
+  cluster 8: n=6  d_P≈16.9 Å  pair-corr=0.54
+  cluster 9: n=4  d_P≈19.3 Å  pair-corr=0.34
+  cluster 10: n=3  d_P≈24.2 Å  pair-corr=0.50
+  cluster 11: n=3  d_P≈26.2 Å  pair-corr=0.75
+  cluster 12: n=3  d_P≈20.1 Å  pair-corr=0.44
+  ... 1 more clusters
+
+  intermediate  : n= 381  d_P median=21.9 Å  score median=0.000
+
+  amorphous     : n= 468  d_P median=8.2 Å  score median=0.015
+
+Heatmaps written to /Users/aaroncelestian/Library/Mobile Documents/com~apple~CloudDocs/HTML/DNA_CaOx/figures/crystallinity/
+Per-Ca metrics: /Users/aaroncelestian/Library/Mobile Documents/com~apple~CloudDocs/HTML/DNA_CaOx/figures/crystallinity/DNA_CaOx_gel_altP_geom_shell_lattice_omm_ca_metrics.csv
+
+Growth-radius sweep — symmetry vs detachment proxies
+========================================================================
+Lattice Ca: oriented COM cuts from Whewellite - xtl.pdb (includes 3.84 Å).
+Observed Ca: rigid grown model (CaOx_whewellite_noDNA.pdb, min Ca–Ca 6 Å).
+Shared sites: lattice Ca within R merged at 0.85 Å; n≥2 seeds agree.
+DNA dist: min heavy-atom distance NUC ↔ outward Ca shell (peel proxy).
+
+R(Å)  latCa  a_med a_max  c_med c_max 384   β_med shared  merge  dna_min dna_out  obs_a  obs_c obs_sh
+------------------------------------------------------------------------
+  6.0     96      —     —      —     —    —      —      0     72   0.54     —      —     —     0
+  8.0    552   0.52  0.52   0.26  0.26 0.35  72.98      1    527   0.44  4.52      —  0.11     1
+ 10.0   1032   0.58  0.58      —     — 0.40  35.82      3   1005   0.44  7.61   0.12  0.08     5
+ 12.0   1464   0.62  0.62      —     — 0.39  35.77     19   1421   0.12  4.88   0.08  0.06     6
+ 15.0   3072   0.69  0.69   0.52  0.52 0.41  72.98     68   2976   0.12  8.03   0.08  0.05     6
+ 20.0   7560   0.77  0.77   0.64  0.64 0.43  72.98    322   7191   0.12 10.98   0.06  0.04     6
+ 25.0  14376   0.81  0.81   0.71  0.71 0.44  72.98    888  13399   0.12 13.05   0.05  0.03     6
+ 30.0  24888   0.84  0.84      —     — 0.45  35.76   1954  22749   0.12 16.45   0.05  0.03     6
+
+Reading guide
+------------------------------------------------------------------------
+  ~10 Å (1 c-step):  local c symmetry should rise; a already present.
+  shared sites:    cross-seed lattice continuity (not detachment).
+  dna_min rising:  crystallite moving away from backbone (peel hint).
+  obs_* columns:   capped near 10 Å for rigid grown model.
+
+Qualitative thresholds (from lattice sweep):
+  First R ≥ 8 Å: local a-translation median ≥ 0.35
+  First R ≥ 8 Å: local c-translation median ≥ 0.20
+  First R ≥ 15 Å: local c-translation median ≥ 0.30
+  First R ≥ 12 Å: shared lattice sites ≥ 5
+  First R ≥ 15 Å: shared lattice sites ≥ 20
+  DNA min stays < 3.0 Å through 30 Å
+

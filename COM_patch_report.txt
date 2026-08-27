@@ -1,0 +1,22 @@
+Isolated COM-like patch
+==================================================
+Source : CaOx_whewellite_noDNA.pdb
+Center : COM X residue 11 (7 neighbors at 6.0–7.2 Å)
+Keep   : whole rigid CaOx residues that enter 8.0 A
+Atoms  : 120   Ca: 12   {'COM': 20, 'WHW': 100}
+Core 6.5 A: 100 atoms
+
+Steric: Ca–Ca < 6.0 Å = 0; O–O < 2.0 Å = 0
+
+Ca–Ca in the 8 A patch (≤ 11 A):
+  6.29 Å ±0.30 : 12 pairs
+  10.12 Å ±0.30: 3 pairs
+  n pairs=43  min=6.10  max=10.69
+
+Files:
+  COM_patch.pdb   120 atoms  (recommended MD start)
+  COM_patch.xyz   same, XYZ
+  COM_patch_core.pdb  100 atoms (tighter cut)
+
+Solvate and add H on the cluster (tleap / gmx pdb2gmx).
+This is a geometric extract, not minimized.

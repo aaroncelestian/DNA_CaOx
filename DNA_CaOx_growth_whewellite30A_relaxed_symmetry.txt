@@ -1,0 +1,49 @@
+Symmetry + crystallinity map — DNA_CaOx_growth_whewellite30A_relaxed.pdb
+==============================================================
+WHW Ca sites: 1605
+DNA-bound seeds: 4 (from DNA_CaOx_growth.pdb)
+Reference COM cell: a=6.29  c=10.116  beta=109.46
+
+Spatial domains (Ca clusters): 1
+  domain 1: 1605 Ca  cryst_idx=0.26  a=0.40 c=0.35 384=0.00
+
+  crystalline   : n= 991  d_P median=16.5 Å  score median=0.305
+  intermediate  : n= 496  d_P median=16.0 Å  score median=0.176
+  amorphous     : n= 118  d_P median=14.8 Å  score median=0.104
+
+Heatmaps written to figures/crystallinity/
+Per-Ca metrics: figures/crystallinity/DNA_CaOx_growth_whewellite30A_relaxed_ca_metrics.csv
+
+Growth-radius sweep — symmetry vs detachment proxies
+========================================================================
+Lattice Ca: oriented COM cuts from Whewellite - xtl.pdb (includes 3.84 Å).
+Observed Ca: rigid grown model (CaOx_whewellite_noDNA.pdb, min Ca–Ca 6 Å).
+Shared sites: lattice Ca within R merged at 0.85 Å; n≥2 seeds agree.
+DNA dist: min heavy-atom distance NUC ↔ outward Ca shell (peel proxy).
+
+R(Å)  latCa  a_med a_max  c_med c_max 384   β_med shared  merge  dna_min dna_out  obs_a  obs_c obs_sh
+------------------------------------------------------------------------
+  6.0     16      —     —      —     —    —      —      0     12   0.95     —   0.25  0.12     0
+  8.0     92   0.52  0.52   0.26  0.26 0.35  72.98      5     82   0.65  4.43   0.28  0.11     0
+ 10.0    172   0.58  0.58   0.35  0.35 0.40  35.82      9    158   0.65  6.25   0.34  0.16     0
+ 12.0    244   0.62  0.62   0.43  0.43 0.39  35.77      9    230   0.30  4.83   0.35  0.21     0
+ 15.0    512   0.69  0.69   0.52  0.52 0.41  49.28     21    486   0.27  7.72   0.32  0.30     0
+ 20.0   1260   0.77  0.77   0.65  0.65 0.43  49.20     38   1216   0.16 10.41   0.30  0.26     0
+ 25.0   2396   0.81  0.81   0.71  0.71 0.44  49.24     73   2316   0.16 13.55   0.28  0.30     0
+ 30.0   4148   0.84  0.84   0.76  0.76 0.45  74.53    136   4004   0.16 16.59   0.25  0.21     0
+
+Reading guide
+------------------------------------------------------------------------
+  ~10 Å (1 c-step):  local c symmetry should rise; a already present.
+  shared sites:    cross-seed lattice continuity (not detachment).
+  dna_min rising:  crystallite moving away from backbone (peel hint).
+  obs_* columns:   capped near 10 Å for rigid grown model.
+
+Qualitative thresholds (from lattice sweep):
+  First R ≥ 8 Å: local a-translation median ≥ 0.35
+  First R ≥ 8 Å: local c-translation median ≥ 0.20
+  First R ≥ 10 Å: local c-translation median ≥ 0.30
+  First R ≥ 8 Å: shared lattice sites ≥ 5
+  First R ≥ 15 Å: shared lattice sites ≥ 20
+  DNA min stays < 3.0 Å through 30 Å
+

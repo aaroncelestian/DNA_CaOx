@@ -1,0 +1,48 @@
+Symmetry search — CaOx_whewellite_noDNA.pdb
+==============================================================
+Ca sites: 236   (chain X seeds + chain Z grown)
+Reference COM cell: a=6.29  b=14.583  c=10.116  beta=109.46
+Whewellite space group (literature): P2_1/n  (or P2_1/c setting)
+
+Spatial domains (separate crystallites): 1
+  domain 1: 236 Ca
+
+--- Domain 1  (236 Ca) ---
+Best translation vectors (fraction of Ca reproduced within 0.45 Å):
+   frac    |v|     COM-axis   |v|-axis    vector
+   0.03     6.25 Å    a   6.29   Δ= 0.04   [  -3.92   -4.36   -2.17]
+   0.03     6.25 Å    a   6.29   Δ= 0.04   [   0.93    2.16   -5.79]
+   0.02     6.33 Å    a   6.29   Δ= 0.04   [   1.33   -0.94    6.12]
+   0.02     6.25 Å    a   6.29   Δ= 0.04   [  -6.18   -0.57   -0.71]
+   0.02     6.23 Å    a   6.29   Δ= 0.06   [   4.57    0.84   -4.16]
+   0.02     6.25 Å    a   6.29   Δ= 0.04   [  -0.90   -1.94    5.88]
+   0.02     7.54 Å    a   6.29   Δ= 1.25   [  -6.92   -2.65   -1.40]
+   0.02     6.29 Å    a   6.29   Δ= 0.00   [  -0.73   -6.20    0.78]
+   0.02     6.23 Å    a   6.29   Δ= 0.06   [   3.54    4.64    2.18]
+   0.02     6.27 Å    a   6.29   Δ= 0.02   [  -0.79    4.64   -4.14]
+   0.02     6.24 Å    a   6.29   Δ= 0.05   [   6.03    1.28    1.01]
+   0.02     6.19 Å    a   6.29   Δ= 0.10   [   1.05   -5.32    2.99]
+Point / screw tests (fraction of Ca mapped onto another Ca):
+  inversion through domain centroid: 0.02
+
+--- Local 10 Å patches around 44 seed Ca ---
+  local a-translation (~6.29 Å): n=30  median frac=0.19  mean=0.21  max=0.44
+  local c-translation (~10.12 Å): n=43  median frac=0.09  mean=0.11  max=0.22
+  local 3.84 Å Ca–Ca (intra-cell): no matches
+  local a∧c angle: median 54.3°  (COM β = 109.46° or 70.5°)
+
+Interpretation
+--------------------------------------------------------------
+
+This is not a single periodic crystal. DNA is helical, so each
+phosphate-bound seed grew a locally monoclinic COM patch. After
+DNA is removed those patches still carry:
+  * the 6.29 Å a-chain (phosphate-templated)
+  * the ~10.1 Å c step (outward from the helix)
+  * the 3.84 Å intra-cell Ca–Ca is omitted (min Ca–Ca is 6 Å)
+A global P2_1/n operation will not map the whole model onto
+itself. Locally (one strand, ~10 Å) the symmetry is whewellite.
+Shared Ca sites (B=10 in the PDB) are where two patches agreed
+on the same lattice point — the start of crystal continuity.
+
+See also: CaOx_whewellite_symmetry_sweep.txt (radius sweep)

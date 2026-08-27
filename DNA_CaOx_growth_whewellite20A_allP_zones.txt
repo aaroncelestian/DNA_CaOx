@@ -1,0 +1,98 @@
+Whewellite crystallite on DNA_CaOx_growth (20A_allP cut)
+============================================================
+Input          : DNA_CaOx_growth.pdb
+Crystal source : Whewellite - xtl.pdb
+Cell images    : nmax=5 (111804 symmetry copies)
+Seeds          : 22 COM Ca, one per phosphate on both strands
+Cut            : union of 20.0 Å spheres around 22 seed Ca
+DNA length     : 43.3 Å
+DNA radial env.: 12.0 Å from helix axis
+
+B-factor on WHW encodes phosphate-distance shell: 6, 10, 20, 30, 40 Å.
+
+Removed COM seed atoms     : 40
+Removed clashing waters    : 88 / 88 molecules
+Free ions kept             : Na 0/22, Ca 0/8, oxalate 0/8
+Waters kept                : 0 molecules
+
+Crystallite atoms          : 25827  (Ca 1629, H 0)
+Multi-seed lattice sites   : 8982 atom clusters, 550 Ca
+Total atoms in output PDB  : 26313
+
+Distance from phosphate backbone (Ca → P min distance):
+  0-6 A gel (backbone-attached)  Ca  128  (multi-seed sites 82)
+  6-10 A inner shell            Ca  253  (multi-seed sites 138)
+  10-20 A bulk-like (~2 c-steps)  Ca  957  (multi-seed sites 312)
+  20-30 A outer slab            Ca  291  (multi-seed sites 18)
+
+Outward c-steps from nearest seed (c ≈ 10.1 Å):
+  c-step  0  :  625 Ca
+  c-step  1  :  842 Ca
+  c-step  2  :  162 Ca
+
+Interpretation (templating zones):
+  0-6 Å    disordered hydrated gel — backbone-attached
+  ~10 Å    local whewellite symmetry (~1 c-step)
+  ~20 Å    bulk-like slab (~2 c-steps); outer edge may peel
+  ~30 Å    cross-seed lattice continuity may appear
+
+COM reference Ca–Ca (periodic):
+    3.843 Å   (x24)
+    6.273 Å   (x64)
+    6.681 Å   (x4)
+    6.881 Å   (x8)
+    7.277 Å   (x32)
+    7.603 Å   (x20)
+    7.878 Å   (x8)
+    8.228 Å   (x24)
+    9.576 Å   (x60)
+    9.957 Å   (x56)
+   10.116 Å   (x16)
+   10.398 Å   (x8)
+   10.976 Å   (x24)
+   11.480 Å   (x6)
+   12.031 Å   (x40)
+   12.284 Å   (x40)
+   12.500 Å   (x40)
+   12.825 Å   (x48)
+   13.266 Å   (x12)
+   13.565 Å   (x20)
+   13.856 Å   (x24)
+   14.116 Å   (x30)
+   14.342 Å   (x40)
+   14.607 Å   (x20)
+   14.990 Å   (x48)
+   15.332 Å   (x36)
+   15.699 Å   (x48)
+   15.905 Å   (x72)
+   16.218 Å   (x20)
+   16.462 Å   (x16)
+   16.756 Å   (x20)
+   16.988 Å   (x20)
+   17.430 Å   (x10)
+   17.711 Å   (x68)
+   17.956 Å   (x28)
+   18.306 Å   (x24)
+   18.581 Å   (x40)
+   18.901 Å   (x28)
+   19.235 Å   (x24)
+   19.452 Å   (x30)
+   19.861 Å   (x66)
+   20.210 Å   (x30)
+   20.462 Å   (x32)
+   20.984 Å   (x6)
+   21.258 Å   (x18)
+   21.549 Å   (x10)
+   21.877 Å   (x22)
+
+Ca–Ca in model (≤ 22 Å):
+   3.84 Å ±0.30 : 1906 pairs
+   6.29 Å ±0.30 : 3722 pairs
+   6.68 Å ±0.30 : 1718 pairs
+   6.88 Å ±0.30 : 2159 pairs
+   7.28 Å ±0.30 : 3033 pairs
+  10.12 Å ±0.30 : 5918 pairs
+  n pairs=217977  min=3.50  max=22.00
+
+Output: DNA_CaOx_growth_whewellite20A_allP.pdb
+Zones : DNA_CaOx_growth_whewellite20A_allP_zones.txt

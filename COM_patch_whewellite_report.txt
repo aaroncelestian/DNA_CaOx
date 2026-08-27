@@ -1,0 +1,41 @@
+Whewellite crystallite patch (single seed)
+========================================================
+Source crystal : Whewellite - xtl.pdb
+Center         : DNA-bound COM residue 11 (same site as COM_patch)
+Cut            : 10.0 Å COM lattice, one seed only (no patch overlap)
+Atoms          : 401   Ca: 43
+
+This is a real COM fragment, not rigid CaOx monomers.
+Ca–Ca therefore includes the crystallographic 3.84 Å contact.
+Unphysical Ca–Ca < 3.50 Å and inter-residue O–O < 2.0 Å are removed.
+
+COM reference Ca–Ca ≤ 11 Å:
+    3.843 Å   (x24)
+    6.273 Å   (x64)
+    6.681 Å   (x4)
+    6.881 Å   (x8)
+    7.277 Å   (x32)
+    7.603 Å   (x20)
+    7.878 Å   (x8)
+    8.228 Å   (x24)
+    9.576 Å   (x60)
+    9.957 Å   (x56)
+   10.116 Å   (x16)
+   10.398 Å   (x8)
+   10.942 Å   (x16)
+
+Ca–Ca in this patch (≤ 11 Å):
+   3.84 Å ±0.30 : 47 pairs
+   6.29 Å ±0.30 : 100 pairs
+   6.68 Å ±0.30 : 15 pairs
+   6.88 Å ±0.30 : 29 pairs
+   7.28 Å ±0.30 : 55 pairs
+  10.12 Å ±0.30 : 90 pairs
+  n pairs=470  min=3.80  max=10.98
+
+Files:
+  COM_patch_whewellite.pdb   crystallite only (MD / QM)
+  COM_patch_whewellite.xyz   same, XYZ
+  COM_patch_whewellite_withDNA.pdb   crystallite + nearby DNA atoms
+
+COM_patch.pdb is the 6 Å rigid-monomer alternative.

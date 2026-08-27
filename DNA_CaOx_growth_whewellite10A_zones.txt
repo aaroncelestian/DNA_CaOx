@@ -1,0 +1,63 @@
+Whewellite crystallite on DNA_CaOx_growth (10 Å cut)
+============================================================
+Input          : DNA_CaOx_growth.pdb
+Crystal source : Whewellite - xtl.pdb
+Cell images    : nmax=3 (28812 symmetry copies)
+Seeds          : 4 COM Ca on chain X (residues 1, 2, 3, 4)
+Cut radius     : 10.0 Å per seed (oriented merge)
+
+B-factor on WHW encodes phosphate-distance shell: 6, 10, 20, 30, 40 Å.
+
+Removed COM seed atoms     : 40
+Removed clashing waters    : 35 / 88 molecules
+Free ions kept             : Na 15/22, Ca 6/8, oxalate 6/8
+Waters kept                : 53 molecules
+
+Crystallite atoms          : 1946  (Ca 101, H 0)
+Multi-seed lattice sites   : 287 atom clusters, 20 Ca
+Total atoms in output PDB  : 2648
+
+Distance from phosphate backbone (Ca → P min distance):
+  0-6 A gel (backbone-attached)  Ca   32  (multi-seed sites 8)
+  6-10 A inner shell            Ca   51  (multi-seed sites 11)
+  10-20 A bulk-like (~2 c-steps)  Ca   18  (multi-seed sites 1)
+  20-30 A outer slab            Ca    0  (multi-seed sites 0)
+
+Outward c-steps from nearest seed (c ≈ 10.1 Å):
+  c-step  0  :   82 Ca
+  c-step  1  :   19 Ca
+
+Interpretation (templating zones):
+  0-6 Å    disordered hydrated gel — backbone-attached
+  ~10 Å    local whewellite symmetry (~1 c-step)
+  ~20 Å    bulk-like slab (~2 c-steps); outer edge may peel
+  ~30 Å    cross-seed lattice continuity may appear
+
+COM reference Ca–Ca (periodic):
+    3.843 Å   (x24)
+    6.273 Å   (x64)
+    6.681 Å   (x4)
+    6.881 Å   (x8)
+    7.277 Å   (x32)
+    7.603 Å   (x20)
+    7.878 Å   (x8)
+    8.228 Å   (x24)
+    9.576 Å   (x60)
+    9.957 Å   (x56)
+   10.116 Å   (x16)
+   10.398 Å   (x8)
+   10.976 Å   (x24)
+   11.480 Å   (x6)
+   11.952 Å   (x8)
+
+Ca–Ca in model (≤ 12 Å):
+   3.84 Å ±0.30 : 108 pairs
+   6.29 Å ±0.30 : 188 pairs
+   6.68 Å ±0.30 : 62 pairs
+   6.88 Å ±0.30 : 88 pairs
+   7.28 Å ±0.30 : 146 pairs
+  10.12 Å ±0.30 : 207 pairs
+  n pairs=1523  min=3.59  max=12.00
+
+Output: DNA_CaOx_growth_whewellite10A.pdb
+Zones : DNA_CaOx_growth_whewellite10A_zones.txt

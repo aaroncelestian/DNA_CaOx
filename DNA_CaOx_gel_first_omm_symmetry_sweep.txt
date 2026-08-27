@@ -1,0 +1,32 @@
+Growth-radius sweep — symmetry vs detachment proxies
+========================================================================
+Lattice Ca: oriented COM cuts from Whewellite - xtl.pdb (includes 3.84 Å).
+Observed Ca: rigid grown model (CaOx_whewellite_noDNA.pdb, min Ca–Ca 6 Å).
+Shared sites: lattice Ca within R merged at 0.85 Å; n≥2 seeds agree.
+DNA dist: min heavy-atom distance NUC ↔ outward Ca shell (peel proxy).
+
+R(Å)  latCa  a_med a_max  c_med c_max 384   β_med shared  merge  dna_min dna_out  obs_a  obs_c obs_sh
+------------------------------------------------------------------------
+  6.0    176      —     —      —     —    —      —      0    132   0.23     —      —     —     0
+  8.0   1012   0.52  0.52   0.26  0.26 0.35  72.98     10    958   0.20  4.38      —     —     0
+ 10.0   1892   0.58  0.58      —     — 0.40  35.82     41   1807   0.15  7.82      —     —     0
+ 12.0   2684   0.62  0.62      —     — 0.39  35.77     92   2546   0.15  4.76      —     —     0
+ 15.0   5632   0.69  0.69   0.52  0.52 0.41  72.98    285   5287   0.15  8.00      —     —     0
+ 20.0  13860   0.77  0.77   0.64  0.64 0.43  72.98   1130  12583   0.12 10.92      —     —     0
+ 25.0  26356   0.81  0.81   0.71  0.71 0.44  72.98   2868  23078   0.11 13.12      —     —     0
+ 30.0  45628   0.84  0.84      —     — 0.45  35.76   5827  38870   0.11 16.40      —     —     0
+
+Reading guide
+------------------------------------------------------------------------
+  ~10 Å (1 c-step):  local c symmetry should rise; a already present.
+  shared sites:    cross-seed lattice continuity (not detachment).
+  dna_min rising:  crystallite moving away from backbone (peel hint).
+  obs_* columns:   capped near 10 Å for rigid grown model.
+
+Qualitative thresholds (from lattice sweep):
+  First R ≥ 8 Å: local a-translation median ≥ 0.35
+  First R ≥ 8 Å: local c-translation median ≥ 0.20
+  First R ≥ 15 Å: local c-translation median ≥ 0.30
+  First R ≥ 8 Å: shared lattice sites ≥ 5
+  First R ≥ 10 Å: shared lattice sites ≥ 20
+  DNA min stays < 3.0 Å through 30 Å

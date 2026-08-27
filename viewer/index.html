@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DNA–CaOx growth viewer</title>
+    <link rel="stylesheet" href="viewer.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="c"></canvas>
+      <aside id="panel">
+        <header>
+          <h1>DNA–CaOx</h1>
+          <p class="sub" id="source-label">Every other P (30 Å, FIRE/OMM)</p>
+        </header>
+
+        <section>
+          <h2>Cut</h2>
+          <div class="row">
+            <button type="button" id="geom-altp" class="active">Alt P 30Å</button>
+            <button type="button" id="geom-local">Local 20Å</button>
+          </div>
+          <div class="row" style="margin-top:6px">
+            <button type="button" id="geom-gel">Gel 44P</button>
+            <button type="button" id="geom-shell15">Gel+15Å</button>
+            <button type="button" id="geom-gel-altp">Gel alt-P</button>
+            <button type="button" id="geom-shell-lattice" class="active">Saturated shell</button>
+          </div>
+          <div class="row" style="margin-top:6px">
+            <button type="button" id="geom-allp">All P 30Å</button>
+            <button type="button" id="geom-sphere">4-seed</button>
+            <button type="button" id="geom-slab">Slab</button>
+          </div>
+          <p class="hint" id="cut-label"></p>
+        </section>
+
+        <section>
+          <h2>DNA</h2>
+          <label><input type="checkbox" id="dna-ribbons" checked /> Ribbons</label>
+          <label><input type="checkbox" id="dna-pairs" checked /> Base-pair rungs</label>
+          <label><input type="checkbox" id="dna-p" checked /> Phosphates</label>
+          <label><input type="checkbox" id="dna-seeds" checked /> COM seeds</label>
+          <label><input type="checkbox" id="oxalate" checked /> Oxalate (C₂O₄)</label>
+        </section>
+
+        <section>
+          <h2>Mineral phase</h2>
+          <label class="swatch amorphous"><input type="checkbox" id="ph-amorphous" checked /> Amorphous <span id="n-amorphous"></span></label>
+          <label class="swatch intermediate"><input type="checkbox" id="ph-intermediate" checked /> Nucleation (phase) <span id="n-intermediate"></span></label>
+          <label class="swatch crystalline"><input type="checkbox" id="ph-crystalline" checked /> Strong order <span id="n-crystalline"></span></label>
+          <label class="swatch nucleation"><input type="checkbox" id="ph-nucleation" checked /> Hotspot envelope <span id="n-nucleation"></span></label>
+          <p class="hint">Envelope = OMM endpoint only (hidden during FIRE traj). Markers follow Ca atoms.</p>
+        </section>
+
+        <section>
+          <h2>How to draw CaOx</h2>
+          <label><input type="radio" name="style" value="cloud" checked /> Distance clouds</label>
+          <label><input type="radio" name="style" value="spheres" /> Ca spheres</label>
+          <label><input type="radio" name="style" value="points" /> Ca points</label>
+          <label><input type="checkbox" id="envelopes" checked /> Phase envelopes</label>
+          <label><input type="checkbox" id="nucleation-hotspots" checked /> Hotspot markers (glow)</label>
+          <label><input type="checkbox" id="shells" /> Cut guides</label>
+          <label>Envelope opacity
+            <input type="range" id="env-opacity" min="4" max="55" value="18" />
+          </label>
+        </section>
+
+        <section>
+          <h2>Color Ca by</h2>
+          <label><input type="radio" name="color" value="phase" checked /> Phase</label>
+          <label><input type="radio" name="color" value="distance" /> Distance from P</label>
+          <label><input type="radio" name="color" value="score" /> COM-net score</label>
+          <label><input type="radio" name="color" value="comRegistry" /> COM pair correlation</label>
+        </section>
+
+        <section>
+          <h2>Filters</h2>
+          <label>Min distance from P
+            <input type="range" id="dmin" min="0" max="40" value="0" step="0.5" />
+            <span id="dmin-v">0 Å</span>
+          </label>
+          <label>Max distance from P
+            <input type="range" id="dmax" min="0" max="40" value="40" step="0.5" />
+            <span id="dmax-v">40 Å</span>
+          </label>
+          <label>Peel radius
+            <input type="range" id="rmax" min="8" max="50" value="50" step="0.5" />
+            <span id="rmax-v">50 Å</span>
+          </label>
+          <label>Axial slab
+            <input type="range" id="slab" min="4" max="50" value="50" step="0.5" />
+            <span id="slab-v">full</span>
+          </label>
+        </section>
+
+        <section>
+          <h2>View</h2>
+          <div class="row">
+            <button type="button" id="view-end">End-on</button>
+            <button type="button" id="view-side">Side</button>
+            <button type="button" id="view-seed">Seed face</button>
+            <button type="button" id="view-nucleation">Nucleation</button>
+          </div>
+        </section>
+
+        <section id="traj-section" hidden>
+          <h2>Trajectory</h2>
+          <label>FIRE step
+            <input type="range" id="traj-step" min="0" max="0" value="0" step="1" />
+            <span id="traj-step-v">0</span>
+          </label>
+          <div class="row">
+            <button type="button" id="traj-play">Play</button>
+            <button type="button" id="traj-reset">Reset</button>
+          </div>
+          <p class="hint" id="traj-status">No trajectory loaded.</p>
+        </section>
+
+        <section>
+          <h2>Export</h2>
+          <div class="row">
+            <button type="button" id="export-png-2x">PNG 2×</button>
+            <button type="button" id="export-png-4x">PNG 4×</button>
+          </div>
+          <div class="row" style="margin-top:6px">
+            <button type="button" id="export-pdf">PDF (4×)</button>
+          </div>
+          <p class="hint" id="export-status">PNG or print-ready PDF (embedded high-res raster).</p>
+        </section>
+
+        <p class="hint">
+          Start from the project folder with <code>python3 -m http.server 8765</code>
+          and open <code>http://localhost:8765/viewer/</code>.
+          Drag to rotate, scroll to zoom, right-drag to pan.
+          Local 20Å is Ca+oxalate at every phosphate (~2 c-steps), then DLS.
+        </p>
+        <p class="hint" id="visible-count"></p>
+      </aside>
+      <div id="scale"><i></i><span>20 Å</span></div>
+      <div id="legend">
+        <span class="amorphous">amorphous</span>
+        <span class="intermediate">nucleation</span>
+        <span class="crystalline">strong order</span>
+        <span class="nucleation">hotspots</span>
+      </div>
+    </div>
+    <script>
+      window.addEventListener("error", (e) => {
+        const el = document.getElementById("source-label");
+        if (el) el.textContent = "Error: " + (e.message || "script failed");
+      });
+    </script>
+    <script src="model-data.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three.module.js",
+          "three/addons/": "./vendor/"
+        }
+      }
+    </script>
+    <script type="module" src="viewer.js"></script>
+  </body>
+</html>

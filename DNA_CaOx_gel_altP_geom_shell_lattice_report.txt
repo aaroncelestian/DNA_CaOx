@@ -1,0 +1,21 @@
+Gel + radial zoned lattice (gel coat → intermediate → pre-crystal) CaOx/water shell (saturated saturation)
+============================================================
+Gel source : DNA_CaOx_gel_altP_geom_omm.pdb  (24 WHW units, resseq 1–24)
+Shell      : 2.25–30.00 Å from gel heavy atoms
+Shell mode : radial zoned lattice (gel coat → intermediate → pre-crystal)
+Shell units: 825 rigid CaC2O4·nH2O
+Shell water: 3500 WHW O sites
+Radial zones (d_gel from gel heavy, bfac tag):
+  3.5–8.0 Å  bfac=18  units=22
+  8.0–15.0 Å  bfac=22  units=87
+  15.0–22.0 Å  bfac=24  units=179
+  22.0–30.0 Å  bfac=26  units=245
+  3.5–30.0 Å  bfac=26  surplus fill units=292
+Total WHW  : 4349 residues
+
+Sterics (inter-residue WHW + DNA)
+  Ca–Ca < 6.0 Å: 70  (min 4.001)
+  O–O < 2.0 Å: 430  (min 0.117)
+
+Relax with:
+  python scripts/fire_openmm_caox.py DNA_CaOx_gel_altP_geom_shell_lattice.pdb --freeze-resseq-le 24 --com-min-resseq 24 --com-ramp-steps 60 --rotation-free-steps 40

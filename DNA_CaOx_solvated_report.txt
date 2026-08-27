@@ -1,0 +1,13 @@
+DNA + CaOx + compact water droplet
+==================================================
+Duplex chains     : AB
+DNA atoms         : 486
+Bound COM atoms   : 209  (residues [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33])
+Floating CaOx     : 8 units, 56 atoms (Ca + C2O4)
+Waters            : 110 molecules, 330 atoms
+TOTAL atoms       : 1081
+
+This is a first hydration shell, not a periodic box.
+DNA hydrogens are not added here; protonate before MD
+(reduce / tleap / OpenBabel). Waters are TIP3P-like.
+

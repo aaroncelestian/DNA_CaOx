@@ -1,0 +1,49 @@
+Rigid CaOx units grown 10 Å from DNA-bound seeds
+============================================================
+COM cell: a=6.290  b=14.583  c=10.116  beta=109.46
+COM Ca–Ca lengths ≤ 11 Å (periodic reference):
+    3.843 Å   (x24)  [excluded by min Ca-Ca 6.0]
+    6.273 Å   (x64)
+    6.681 Å   (x4)
+    6.881 Å   (x8)
+    7.277 Å   (x32)
+    7.603 Å   (x20)
+    7.878 Å   (x8)
+    8.228 Å   (x24)
+    9.576 Å   (x60)
+    9.957 Å   (x56)
+   10.116 Å   (x16)
+   10.398 Å   (x8)
+   10.942 Å   (x16)
+
+Each CaOx is a rigid molecule (DOCS/Whewellite ca_ox.pdb).
+Accepted only if Ca–Ca ≥ 6.0 Å and inter-unit O–O ≥ 2.0 Å.
+
+DNA-bound Ca seeds     : 44
+Grown rigid CaOx units : 192
+Sites claimed by ≥2 seeds: 3
+Rejected candidates    : Ca–Ca 1455, DNA 135, O–O/orient 18
+  Shared sites (resseq sources):
+    n=3  sources 4,5,32  xyz [  4.06  10.3  -18.51]
+    n=2  sources 18,37  xyz [-11.95   7.39 -56.77]
+    n=2  sources 31,32  xyz [ 10.78  22.56 -13.08]
+
+Ca–Ca pairs ≤ 11 Å in the grown model vs COM:
+   COM  3.84 Å  ±0.25  →     0 pairs in model
+   COM  6.27 Å  ±0.25  →   254 pairs in model
+   COM  6.68 Å  ±0.25  →    92 pairs in model
+   COM  6.88 Å  ±0.25  →    79 pairs in model
+   COM  7.28 Å  ±0.25  →   112 pairs in model
+   COM  7.60 Å  ±0.25  →    80 pairs in model
+   COM  7.88 Å  ±0.25  →    74 pairs in model
+   COM  8.23 Å  ±0.25  →    82 pairs in model
+   Model pairs: n=1257  min=6.00  median=8.53  max=11.00
+
+DNA-bound Ca with a grown neighbor at COM 6.29 Å: 44/44
+
+Steric check (inter-residue):
+  Ca–Ca < 6.0 Å: 0  none
+  O–O < 2.0 Å  : 0  none
+
+Alignment: COM a-axis (6.29 Å) || local DNA backbone tangent.
+3.84 Å intra-cell Ca–Ca is not used (below the 6 Å floor).

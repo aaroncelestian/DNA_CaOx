@@ -1,0 +1,32 @@
+FIRE (rigid oxalate) + OpenMM minimization — CaOx / WHW only (DNA fixed)
+========================================================================
+Input     : DNA_CaOx_gel_altP_geom_shell_lattice.pdb
+FIRE PDB  : DNA_CaOx_gel_altP_geom_shell_lattice_fire.pdb
+OpenMM PDB: DNA_CaOx_gel_altP_geom_shell_lattice_omm.pdb
+WHW atoms : 11957 -> 11957 (same-element merge 0.0 Å)
+Groups    : 849 rigid oxalate, 849 Ca, 6014 water O
+FIRE      : 2500 steps, freeze-beyond=0.0 Å, frozen bodies=0
+
+Restraints (same as DLS, oxalate rigid instead of intra LS):
+  O···O one-sided target 2.40 Å  (weight 80.0)
+  Ca···Ca one-sided min 3.50 Å, COM targets (3.843, 6.273, 6.29)
+  Ca–O keep starting coordination (weight 15.0)
+  Positional anchors ±1.60 Å from start
+  DNA coordinates unchanged; WHW–DNA exclusion 2.20 Å
+
+Inter-group O···O < 2.00 Å:
+  start : n=10  min=1.5281112524944012
+  FIRE  : n=17  min=1.6771290828554055
+  final : n=57  min=1.4181429738078075
+
+OpenMM LocalEnergyMinimizer:
+  platform : CPU
+  energy   : 8.9878e+06 -> 7.3718e+06 kJ/mol
+  DNA max shift : 0.0000 Å (should be ~0)
+  oxalate RMSD vs rigid : 0.0531 Å
+  O-O after Cartesian min : n=1  min=1.9167722351156944
+  O-O after re-rigidify   : n=4  min=1.7831710537098073
+  intra-oxalate k = 400.0 (keeps C2O4 rigid during Cartesian min)
+  FIRE polish O-O        : n=57  min=1.4181429738078075
+
+Energy plot: figures/crystallinity/DNA_CaOx_gel_altP_geom_shell_lattice_fire_omm_energy.png

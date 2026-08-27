@@ -1,0 +1,22 @@
+Gel + radial zoned lattice (gel coat → intermediate → pre-crystal) + outward bulk whewellite seed CaOx/water shell (packed saturation)
+============================================================
+Gel source : DNA_CaOx_gel_altP_geom_omm.pdb  (24 WHW units, resseq 1–24)
+Shell      : 2.25–30.00 Å from gel heavy atoms
+Shell mode : radial zoned lattice (gel coat → intermediate → pre-crystal) + outward bulk whewellite seed
+Shell units: 347 rigid CaC2O4·nH2O
+Shell water: 1000 WHW O sites
+Radial zones (d_gel from gel heavy, bfac tag):
+  3.5–9.0 Å  bfac=18  units=24
+  9.0–17.0 Å  bfac=22  units=113
+  17.0–27.0 Å  bfac=24  units=211
+Crystal seed: 43 Ca whewellite patch at d_gel=29.9 Å
+  center COM offset (-7,+1,-4)  R=10.0 Å
+  zone 27.0–30.0 Å; shell monomers within 3.5 Å of seed Ca removed
+Total WHW  : 1414 residues
+
+Sterics (inter-residue WHW + DNA)
+  Ca–Ca < 6.0 Å: 47  (min 3.798)
+  O–O < 2.0 Å: 143  (min 0.312)
+
+Relax with:
+  python scripts/fire_openmm_caox.py DNA_CaOx_gel_altP_geom_shell_lattice_seeded.pdb --freeze-resseq-le 24 --com-min-resseq 24 --com-ramp-steps 60 --rotation-free-steps 40

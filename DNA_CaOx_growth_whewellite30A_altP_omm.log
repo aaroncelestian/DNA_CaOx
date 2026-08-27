@@ -1,0 +1,51 @@
+Merged same-element WHW atoms < 1.15 Å: 53196 -> 47151
+FIRE start: 4353 rigid oxalate, 3415 Ca, 8474 water O, frozen bodies=0, inter-group O-O < 2.0 Å: n=22344 min=1.0495763431022969
+  FIRE    1  E=1.198e+06  |F|max=444.89  dt=0.020  O-O<2Å n=21836 min=1.0908342784635763  P=0.00e+00
+  FIRE   20  E=3.742e+05  |F|max=113.46  dt=0.024  O-O<2Å n=3798 min=1.2240743444533568  P=3.83e+05
+  FIRE   40  E=2.964e+05  |F|max=115.97  dt=0.041  O-O<2Å n=1375 min=1.4716845645979582  P=1.99e+04
+  FIRE   60  E=2.826e+05  |F|max=128.77  dt=0.029  O-O<2Å n=963 min=1.4978560822955886  P=7.02e+02
+  FIRE   80  E=2.788e+05  |F|max=98.11  dt=0.018  O-O<2Å n=877 min=1.494244388650768  P=1.39e+03
+  FIRE  100  E=2.769e+05  |F|max=99.50  dt=0.012  O-O<2Å n=829 min=1.49491612085351  P=-1.42e+03
+  FIRE  120  E=2.768e+05  |F|max=134.29  dt=0.012  O-O<2Å n=831 min=1.4950003831568948  P=-1.22e+03
+Wrote DNA_CaOx_growth_whewellite30A_altP_fire.pdb
+OpenMM start: platform=OpenCL  E=5.014e+05 kJ/mol  particles=47637 (WHW 47151, DNA 486)
+OpenMM done: E=5.014e+05 -> 3.619e+05 kJ/mol  max DNA shift=0.0000 Å  oxalate RMSD=0.0362 Å  O-O<2Å cartesian n=9 min=1.715381447847302  after re-rigidify n=251 min=1.4130776183024014
+FIRE polish after OpenMM (60 steps) ...
+FIRE start: 4353 rigid oxalate, 3415 Ca, 8474 water O, frozen bodies=0, inter-group O-O < 2.0 Å: n=9 min=1.715381447847302
+  FIRE    1  E=4.262e+04  |F|max=94.03  dt=0.020  O-O<2Å n=9 min=1.715768055760274  P=0.00e+00
+  FIRE   20  E=3.306e+04  |F|max=85.22  dt=0.021  O-O<2Å n=2 min=1.729844643900167  P=5.30e+02
+  FIRE   40  E=3.285e+04  |F|max=69.84  dt=0.012  O-O<2Å n=2 min=1.730450086141672  P=-6.42e+02
+  FIRE   60  E=3.282e+04  |F|max=72.74  dt=0.012  O-O<2Å n=2 min=1.730593479337761  P=-6.96e+02
+Wrote DNA_CaOx_growth_whewellite30A_altP_omm.pdb
+FIRE (rigid oxalate) + OpenMM minimization — CaOx / WHW only (DNA fixed)
+========================================================================
+Input     : DNA_CaOx_growth_whewellite30A_altP.pdb
+FIRE PDB  : DNA_CaOx_growth_whewellite30A_altP_fire.pdb
+OpenMM PDB: DNA_CaOx_growth_whewellite30A_altP_omm.pdb
+WHW atoms : 53196 -> 47151 (same-element merge 1.15 Å)
+Groups    : 4353 rigid oxalate, 3415 Ca, 8474 water O
+FIRE      : 120 steps, freeze-beyond=0.0 Å, frozen bodies=0
+
+Restraints (same as DLS, oxalate rigid instead of intra LS):
+  O···O one-sided target 2.40 Å  (weight 80.0)
+  Ca···Ca one-sided min 3.50 Å, COM targets (3.843, 6.273, 6.29)
+  Ca–O keep starting coordination (weight 15.0)
+  Positional anchors ±1.60 Å from start
+  DNA coordinates unchanged; WHW–DNA exclusion 2.20 Å
+
+Inter-group O···O < 2.00 Å:
+  start : n=22344  min=1.0495763431022969
+  FIRE  : n=831  min=1.4950003831568948
+  final : n=2  min=1.730593479337761
+
+OpenMM LocalEnergyMinimizer:
+  platform : OpenCL
+  energy   : 5.0139e+05 -> 3.6194e+05 kJ/mol
+  DNA max shift : 0.0000 Å (should be ~0)
+  oxalate RMSD vs rigid : 0.0362 Å
+  O-O after Cartesian min : n=9  min=1.715381447847302
+  O-O after re-rigidify   : n=251  min=1.4130776183024014
+  intra-oxalate k = 400.0 (keeps C2O4 rigid during Cartesian min)
+  FIRE polish O-O        : n=2  min=1.730593479337761
+
+Energy plot: figures/crystallinity/DNA_CaOx_growth_whewellite30A_altP_fire_omm_energy.png

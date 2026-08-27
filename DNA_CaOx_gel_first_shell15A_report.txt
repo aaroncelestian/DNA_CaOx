@@ -1,0 +1,14 @@
+Gel + disordered CaOx/water shell
+============================================================
+Gel source : DNA_CaOx_gel_first_omm.pdb  (44 WHW units, resseq 1–44)
+Shell      : 2.25–15.00 Å from gel heavy atoms
+Shell units: 180 rigid CaC2O4·nH2O
+Shell water: 320 WHW O sites
+Total WHW  : 544 residues
+
+Sterics (inter-residue WHW + DNA)
+  Ca–Ca < 6.0 Å: 48  (min 2.355)
+  O–O < 2.0 Å: 70  (min 0.385)
+
+Relax with:
+  python scripts/fire_openmm_caox.py DNA_CaOx_gel_first_shell15A.pdb --no-com-targets --freeze-resseq-le 44

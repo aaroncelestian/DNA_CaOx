@@ -1,0 +1,77 @@
+DNA templating of whewellite — what to simulate
+================================================
+
+Question
+--------
+Can the B-DNA phosphate ladder (P-P ~6.3-7.0 A) pre-organize Ca2+ and
+oxalate so that whewellite (COM, Ca-Ca ~6.29 A along c) nucleates
+faster than it would in bulk water?
+
+The decorated backbone PDB is the hypothesized PRODUCT. It does not
+show how solution CaOx gets there. Use the three starts below.
+
+
+Models (small droplet, this folder)
+-----------------------------------
+1. DNA_CaOx_assembly.pdb   813 atoms
+   Bare DNA + Na+ + 8 Ca2+ + 8 oxalate + 83 H2O
+   Nucleation from solution. No bound COM.
+
+2. DNA_CaOx_growth.pdb     868 atoms
+   DNA + 4-site CaOx seed + free Ca2+/oxalate + water
+   Growth / elongation along the backbone.
+
+3. QM_association_cluster.xyz / .com   71 atoms
+   One phosphate + bound CaOx + incoming CaOx + nearby waters
+   Gaussian binding / association energy (not whole-system MD).
+
+4. DNA_CaOx_solvated.pdb
+   Coexistence snapshot (fully decorated + free CaOx). Useful as
+   an endpoint, not as a nucleation start.
+
+5. DOCS/1BNA.pdb
+   Official Drew-Dickerson dodecamer with real DC/DG/DA/DT names.
+   Use this (not the CrystalMaker NUC export) for AMBER/GROMACS.
+
+
+What "templating" looks like
+----------------------------
+Collect these from MD (and compare to a NO-DNA control with the same
+Ca2+/oxalate/water):
+
+  * Ca-OP RDF: inner-sphere peak ~2.3-2.5 A
+  * Sequential Ca-Ca along one strand: peak near 6.3 A (COM c-axis)
+  * Oxalate bridges between two DNA-bound Ca (COM motif)
+  * Longer Ca-Ca ~10 A if a second COM row starts (a-axis)
+  * Residence time of Ca on phosphate vs ion-pair lifetime in water
+  * Free energy: DNA-bound CaOx vs CaOx(aq)
+      umbrella / metadynamics on Ca-OP and Ca-Ca along the backbone
+
+Catalysis (not just binding) means the DNA path has a lower barrier
+or a higher flux of COM-like contacts than the no-DNA control.
+
+
+Recommended compute split
+-------------------------
+Gaussian (this cluster file, 50-150 atoms)
+  Binding energy, inner- vs outer-sphere, oxalate vs phosphate
+  preference. B3LYP-D3BJ/6-31G(d) + SMD is a start; refine with
+  a larger basis if the cluster group agrees.
+
+Classical MD on a cluster (GROMACS / AMBER / OpenMM)
+  Assembly and growth droplets, 50-200 ns, plus enhanced sampling.
+  Force fields: DNA OL15 or BSC1; Ca2+ with 12-6-4 or NBFIX;
+  oxalate GAFF2 + RESP charges from a Gaussian ESP; TIP3P/OPC water.
+  Protonate DNA (reduce/tleap) from 1BNA, not from NUC atom names.
+
+Do not run BOMD in Gaussian on the 1000-atom droplet.
+
+
+Controls and caveats
+--------------------
+  * No-DNA box with the same Ca/oxalate concentration
+  * Ca-phosphate can nucleate calcium phosphate, not COM — keep
+    oxalate-rich and phosphate only on the DNA
+  * Current waters are a first shell, not a periodic box; the MD
+    group may resolvate in a 10 A box and add counterions properly
+  * These coordinates are packed, not energy-minimized
