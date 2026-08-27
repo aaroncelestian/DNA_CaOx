@@ -692,7 +692,7 @@ def build_model(geom: str) -> dict:
     nuc = [a for a in atoms if a["resname"] == "NUC"]
     ca_pts, _ = load_whw_ca(pdb)
     if nuc:
-        origin, axis, zmin, zmax, r_dna = dna_slab_frame(nuc, pad=0.5)
+    origin, axis, zmin, zmax, r_dna = dna_slab_frame(nuc, pad=0.5)
     else:
         origin = ca_pts.mean(axis=0) if len(ca_pts) else np.zeros(3)
         axis = np.array([0.0, 1.0, 0.0])
@@ -702,7 +702,7 @@ def build_model(geom: str) -> dict:
     else:
         seed_path = spec.get("seeds", SEED_PDB)
         try:
-            seeds = load_growth_seed_positions(seed_path)
+    seeds = load_growth_seed_positions(seed_path)
         except SystemExit:
             seeds = {i + 1: ca_pts[i] for i in range(min(4, len(ca_pts)))}
     basis_seeds = seeds if seeds else {
@@ -738,7 +738,7 @@ def build_model(geom: str) -> dict:
         outward = np.ones(len(ca_pts), bool)
         r_phosphate = 0.0
     else:
-        outward = r_axis >= (r_phosphate - 0.35)
+    outward = r_axis >= (r_phosphate - 0.35)
     hotspot = hotspot & outward
     radial = np.hypot(hx_ca[:, 0], hx_ca[:, 2])
     phi = np.degrees(np.arctan2(hx_ca[:, 2], hx_ca[:, 0]))
