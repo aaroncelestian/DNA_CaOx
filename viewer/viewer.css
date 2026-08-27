@@ -92,6 +92,7 @@ label input[type="range"] {
   font-variant-numeric: tabular-nums;
 }
 
+.swatch.shell { color: var(--amorphous); }
 .swatch.amorphous { color: var(--amorphous); }
 .swatch.intermediate { color: var(--intermediate); }
 .swatch.crystalline { color: var(--crystalline); }

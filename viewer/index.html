@@ -46,11 +46,12 @@
 
         <section>
           <h2>Mineral phase</h2>
+          <label class="swatch shell"><input type="checkbox" id="ph-shell" checked /> Gel shell envelope</label>
           <label class="swatch amorphous"><input type="checkbox" id="ph-amorphous" checked /> Amorphous <span id="n-amorphous"></span></label>
           <label class="swatch intermediate"><input type="checkbox" id="ph-intermediate" checked /> Nucleation (phase) <span id="n-intermediate"></span></label>
           <label class="swatch crystalline"><input type="checkbox" id="ph-crystalline" checked /> Strong order <span id="n-crystalline"></span></label>
           <label class="swatch nucleation"><input type="checkbox" id="ph-nucleation" checked /> Hotspot envelope <span id="n-nucleation"></span></label>
-          <p class="hint">Envelope = OMM endpoint only (hidden during FIRE traj). Markers follow Ca atoms.</p>
+          <p class="hint">Gel shell = all Ca, full DNA length (OMM only; hidden during FIRE traj). Hotspot markers follow Ca.</p>
         </section>
 
         <section>

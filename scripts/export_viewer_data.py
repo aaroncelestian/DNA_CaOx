@@ -295,15 +295,19 @@ ENVELOPE_PARAMS = {
     "amorphous": dict(pitch=2.8, sigma=1.5, iso_frac=0.22),
     "intermediate": dict(pitch=3.8, sigma=2.2, iso_frac=0.16),
     "crystalline": dict(pitch=2.0, sigma=1.1, iso_frac=0.32),
-    "nucleation": dict(pitch=2.0, sigma=0.7, iso_frac=0.52),
+    "nucleation": dict(pitch=2.2, sigma=1.1, iso_frac=0.30),
+    "shell": dict(pitch=3.0, sigma=2.4, iso_frac=0.10),
 }
 
 
-def phase_envelope(pts, pitch=2.8, sigma=1.5, iso_frac=0.2):
+def phase_envelope(pts, pitch=2.8, sigma=1.5, iso_frac=0.2, y_clip=None):
     if len(pts) < 4:
         return {"vertices": [], "indices": []}
     mins = pts.min(axis=0) - 3.0 * pitch
     maxs = pts.max(axis=0) + 3.0 * pitch
+    if y_clip is not None:
+        mins[1] = min(float(mins[1]), float(y_clip[0]))
+        maxs[1] = max(float(maxs[1]), float(y_clip[1]))
     shape = np.ceil((maxs - mins) / pitch).astype(int) + 1
     dens = np.zeros(tuple(int(s) for s in shape), float)
     ix = np.clip(((pts - mins) / pitch).astype(int), 0, np.array(shape) - 1)
@@ -444,6 +448,14 @@ def build_model(geom: str) -> dict:
     envelopes["nucleation"] = phase_envelope(hot_pts, **ENVELOPE_PARAMS["nucleation"])
     nv = len(envelopes["nucleation"]["vertices"])
     nt = len(envelopes["nucleation"]["indices"]) // 3
+    print(f"  {nv} verts, {nt} tris")
+    y_clip = (float(zmin) - 5.0, float(zmax) + 5.0)
+    print(f"envelope shell: {len(hx_ca)} Ca (DNA y {y_clip[0]:.1f}…{y_clip[1]:.1f}) ...", flush=True)
+    envelopes["shell"] = phase_envelope(
+        hx_ca, y_clip=y_clip, **ENVELOPE_PARAMS["shell"]
+    )
+    nv = len(envelopes["shell"]["vertices"])
+    nt = len(envelopes["shell"]["indices"]) // 3
     print(f"  {nv} verts, {nt} tris")
 
     counts = {name: int((phase == i).sum()) for name, i in PHASE_INDEX.items()}

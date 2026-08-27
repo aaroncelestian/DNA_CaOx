@@ -13,6 +13,7 @@ const PHASE_COLOR = {
   intermediate: 0x7570b3,
   crystalline: 0x1b9e77,
   nucleation: 0xffdd57,
+  shell: 0xd95f02,
 };
 const STRAND_COLOR = { A: 0xf2e6c9, B: 0xb7c9d9, C: 0xf2e6c9, D: 0xb7c9d9 };
 
@@ -242,6 +243,7 @@ function buildDNA() {
 
 function buildEnvelopes() {
   const names = [...PHASES];
+  if (MODEL.envelopes?.shell?.vertices?.length) names.push("shell");
   if (MODEL.envelopes?.nucleation?.vertices?.length) names.push("nucleation");
   names.forEach((name) => {
     const env = MODEL.envelopes[name];
@@ -256,7 +258,7 @@ function buildEnvelopes() {
     const mat = new THREE.MeshLambertMaterial({
       color: PHASE_COLOR[name] || PHASE_COLOR.intermediate,
       transparent: true,
-      opacity: name === "nucleation" ? 0.14 : 0.18,
+      opacity: name === "nucleation" ? 0.14 : name === "shell" ? 0.12 : 0.18,
       side: THREE.DoubleSide,
       depthWrite: false,
       emissive: name === "nucleation" ? 0x221a00 : 0x000000,
@@ -754,15 +756,17 @@ function applyUi() {
   const op = Number($("env-opacity").value) / 100;
   envGroup.children.forEach((mesh) => {
     const ph = mesh.userData.phase;
-    const cb =
-      ph === "nucleation"
-        ? $("ph-nucleation")
-        : $(`ph-${ph}`);
+    let cb;
+    if (ph === "nucleation") cb = $("ph-nucleation");
+    else if (ph === "shell") cb = $("ph-shell");
+    else cb = $(`ph-${ph}`);
     let on = cb ? cb.checked : true;
-    // Nucleation envelope is from OMM endpoint; it does not follow FIRE trajectory.
+    // Hotspot envelope is OMM-only; gel shell stays as a length reference during FIRE.
     if (ph === "nucleation" && trajData) on = false;
     mesh.visible = on;
-    mesh.material.opacity = ph === "nucleation" ? op * 0.45 : op;
+    if (ph === "nucleation") mesh.material.opacity = op * 0.45;
+    else if (ph === "shell") mesh.material.opacity = op * 0.65;
+    else mesh.material.opacity = op;
   });
   const hotEl = $("nucleation-hotspots");
   hotspotGroup.visible = !!(hotEl && hotEl.checked);
@@ -921,8 +925,9 @@ function setNucleationView() {
   $("dmax").value = "18";
   $("rmax").value = "50";
   $("ph-amorphous").checked = false;
-  $("ph-intermediate").checked = true;
-  $("ph-crystalline").checked = true;
+  $("ph-intermediate").checked = false;
+  $("ph-crystalline").checked = false;
+  if ($("ph-shell")) $("ph-shell").checked = true;
   if ($("ph-nucleation")) $("ph-nucleation").checked = true;
   $("envelopes").checked = true;
   if ($("nucleation-hotspots")) $("nucleation-hotspots").checked = true;
