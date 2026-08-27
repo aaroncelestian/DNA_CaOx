@@ -175,18 +175,32 @@
           <label class="checkbox-row"><input type="checkbox" id="g16-include-oxalate" checked /> Oxalate (C₂O₄)</label>
           <label class="checkbox-row"><input type="checkbox" id="g16-include-water" checked /> Water O</label>
           <div class="row" style="margin-top:6px">
+            <button type="button" id="export-g16-gjf">Export for GaussView</button>
             <button type="button" id="export-g16-com">Export .com</button>
+            <button type="button" id="submit-g16">Run in Gaussian</button>
+          </div>
+          <p class="hint" id="g16-server-status">Gaussian server: checking…</p>
+          <label>Job log
+            <select id="g16-job-select" disabled>
+              <option value="">No jobs yet</option>
+            </select>
+          </label>
+          <pre id="g16-job-log" class="g16-log" aria-live="polite"></pre>
+          <div class="row" style="margin-top:4px">
+            <button type="button" id="g16-cancel-job" class="btn-compact" disabled>Cancel job</button>
           </div>
           <p class="hint" id="g16-hint">
-            Cluster QM only (≈50–150 atoms). Implicit water (SMD/PCM) preferred; exported waters are O only — add H in GaussView or drop waters.
+            <strong>GaussView:</strong> Export for GaussView writes <code>viewer/gaussview_exports/&lt;geom&gt;_g16.gjf</code> (+ matching .com) when the viewer server is running — open the .gjf in GaussView to edit geometry, add H on waters, and submit from there.
+            Cluster QM only (≈50–150 atoms). Implicit water (SMD/PCM) preferred; exported waters are O only.
             Classical MD: DNA OL15/BSC1 + Ca 12-6-4 or NBFIX; oxalate GAFF2 with RESP charges from a Gaussian ESP.
           </p>
           <p class="hint" id="export-status">PNG or print-ready PDF (embedded high-res raster).</p>
         </section>
 
         <p class="hint">
-          Start from the project folder with <code>python3 -m http.server 8765</code>
-          and open <code>http://localhost:8765/viewer/</code>.
+          Start with <code>python3 scripts/viewer_server.py</code>
+          and open <code>http://localhost:8765/viewer/</code>
+          (Gaussian submit + job log need this server, not plain <code>http.server</code>).
           Drag to rotate. Two-finger scroll/drag pans; two-finger click+drag pans too.
           Right-drag, Shift+drag, or Space+drag also pan. Pinch/Ctrl+scroll zooms.
           Rotation stays centered on the DNA helix.

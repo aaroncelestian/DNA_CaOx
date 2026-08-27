@@ -106,6 +106,20 @@ html, body {
   background: #1a2030;
 }
 
+.g16-log {
+  margin: 6px 0 0;
+  max-height: 140px;
+  overflow: auto;
+  padding: 8px;
+  font: 10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #c9d1d9;
+  background: #0c0e12;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 #unroll {
   display: block;
   width: 100%;
@@ -204,6 +218,11 @@ button.active {
 
 button:disabled {
   opacity: 0.55;
+  cursor: not-allowed;
+}
+
+button.is-busy {
+  opacity: 0.75;
   cursor: wait;
 }
 

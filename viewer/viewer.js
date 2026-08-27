@@ -1849,63 +1849,292 @@ function buildGaussianComText(opts) {
   return lines.join("\n");
 }
 
+function prepareGaussianJob(options = {}) {
+  const forGaussView = options.forGaussView ?? false;
+  const presetId = $("g16-preset")?.value || "association_sp";
+  const route =
+    $("g16-route")?.value?.trim() ||
+    G16_PRESETS[presetId]?.route ||
+    G16_PRESETS.association_sp.route;
+  if (!route.startsWith("#")) {
+    throw new Error("Route line must start with # (e.g. #p B3LYP/6-31G(d) …).");
+  }
+
+  getHelixCenter();
+  const center = helixCenter.clone();
+  const atoms = gatherGaussianAtoms({
+    includeDna: $("g16-include-dna")?.checked ?? true,
+    includeOxalate: $("g16-include-oxalate")?.checked ?? true,
+    includeWater: $("g16-include-water")?.checked ?? true,
+    clusterRadius: Number($("g16-radius")?.value || 0),
+    maxAtoms: Number($("g16-max-atoms")?.value || 0),
+    center,
+  });
+
+  if (atoms.length < 3) {
+    throw new Error("Fewer than 3 atoms selected — widen cluster radius or filters.");
+  }
+  if (atoms.length > 250) {
+    throw new Error(
+      `${atoms.length} atoms is too large for a typical G16 cluster job — lower max atoms or radius.`
+    );
+  }
+
+  const charge = Number($("g16-charge")?.value ?? 0);
+  const mult = Math.max(1, Number($("g16-mult")?.value ?? 1));
+  const slug = exportSlug();
+  const chk = forGaussView
+    ? `${slug}_g16.chk`
+    : ($("g16-chk")?.value || `${slug}_g16.chk`).trim();
+  const comText = buildGaussianComText({
+    chk,
+    mem: ($("g16-mem")?.value || "16GB").trim(),
+    nproc: Math.max(1, Number($("g16-nproc")?.value || 1)),
+    route,
+    charge,
+    mult,
+    title: `${MODEL.title || slug} — ${atoms.length} atoms`,
+    atoms,
+  });
+
+  return { comText, atoms, charge, mult, route, slug, chk };
+}
+
+let g16PollTimer = null;
+let g16ServerAvailable = false;
+let g16BinaryAvailable = false;
+let g16CheckTimer = null;
+
+function g16ApiUrl(path) {
+  const suffix = path.startsWith("/") ? path : `/${path}`;
+  const origin = window.location.origin;
+  if (!origin || origin === "null" || window.location.protocol === "file:") {
+    return `http://127.0.0.1:8765/api/g16${suffix}`;
+  }
+  const parts = window.location.pathname.split("/");
+  const viewerIdx = parts.indexOf("viewer");
+  const base = viewerIdx >= 0 ? parts.slice(0, viewerIdx).join("/") : "";
+  return `${origin}${base}/api/g16${suffix}`;
+}
+
+async function fetchG16Json(path, options) {
+  const res = await fetch(g16ApiUrl(path), options);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || `Server error ${res.status}`);
+  }
+  return data;
+}
+
+function updateG16SubmitButton() {
+  const btn = $("submit-g16");
+  if (!btn) return;
+  if (btn.dataset.busy === "1") return;
+  btn.disabled = !g16ServerAvailable;
+  btn.classList.toggle("is-busy", false);
+  if (!g16ServerAvailable) {
+    btn.title =
+      "Start python3 scripts/viewer_server.py, then open http://localhost:8765/viewer/";
+  } else if (!g16BinaryAvailable) {
+    btn.title =
+      "Viewer server OK — restart server after installing g16, or set G16_COMMAND=/Applications/g16/g16";
+  } else {
+    btn.title = "Submit cluster job to local Gaussian (g16)";
+  }
+}
+
+function formatG16JobLabel(job) {
+  const state = job.state || "?";
+  const label = job.label || job.id;
+  const energy =
+    job.lastEnergy != null ? ` E=${Number(job.lastEnergy).toFixed(4)}` : "";
+  return `${label} [${state}]${energy}`;
+}
+
+function updateG16JobSelect(jobs, selectedId) {
+  const sel = $("g16-job-select");
+  if (!sel) return;
+  if (!jobs.length) {
+    sel.innerHTML = "<option value=\"\">No jobs yet</option>";
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
+  const prev = selectedId || sel.value;
+  sel.innerHTML = jobs
+    .map((j) => {
+      const id = j.id;
+      const text = formatG16JobLabel(j);
+      return `<option value="${id}">${text}</option>`;
+    })
+    .join("");
+  if (prev && jobs.some((j) => j.id === prev)) sel.value = prev;
+  else sel.value = jobs[0].id;
+}
+
+function updateG16JobLog(job) {
+  const logEl = $("g16-job-log");
+  const cancelBtn = $("g16-cancel-job");
+  if (!logEl) return;
+  if (!job) {
+    logEl.textContent = "";
+    if (cancelBtn) cancelBtn.disabled = true;
+    return;
+  }
+  const header = [
+    `Job ${job.id} — ${job.state || "?"}`,
+    job.route || "",
+    job.lastEnergy != null ? `Last SCF energy: ${job.lastEnergy}` : "",
+    job.error ? `Error: ${job.error}` : "",
+    "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  logEl.textContent = header + (job.logTail || "(log empty — job starting…)");
+  if (cancelBtn) {
+    cancelBtn.disabled = !["queued", "running"].includes(job.state);
+  }
+}
+
+async function refreshG16Jobs(selectId) {
+  try {
+    const data = await fetchG16Json("/jobs");
+    const jobs = data.jobs || [];
+    updateG16JobSelect(jobs, selectId);
+    const sel = $("g16-job-select");
+    const id = sel?.value;
+    const job = id ? jobs.find((j) => j.id === id) : jobs[0];
+    if (job) updateG16JobLog(job);
+    const running = jobs.some((j) => j.state === "queued" || j.state === "running");
+    if (running && !g16PollTimer) {
+      g16PollTimer = setInterval(() => refreshG16Jobs(), 3000);
+    } else if (!running && g16PollTimer) {
+      clearInterval(g16PollTimer);
+      g16PollTimer = null;
+    }
+    return jobs;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function checkG16Server() {
+  const el = $("g16-server-status");
+  try {
+    const env = await fetchG16Json("/env");
+    g16ServerAvailable = true;
+    g16BinaryAvailable = Boolean(env.available);
+    if (g16CheckTimer) {
+      clearInterval(g16CheckTimer);
+      g16CheckTimer = null;
+    }
+    if (el) {
+      el.textContent = env.available
+        ? `Gaussian ready (${env.command}).`
+        : "Viewer server OK — g16 not found. Set G16_COMMAND=/Applications/g16/g16 and restart server.";
+    }
+    updateG16SubmitButton();
+    await refreshG16Jobs();
+  } catch (_) {
+    g16ServerAvailable = false;
+    g16BinaryAvailable = false;
+    if (el) {
+      el.textContent =
+        "Gaussian API offline — run python3 scripts/viewer_server.py and open http://localhost:8765/viewer/ (not file:// or plain http.server).";
+    }
+    updateG16SubmitButton();
+    if (!g16CheckTimer) {
+      g16CheckTimer = setInterval(() => checkG16Server(), 5000);
+    }
+  }
+}
+
 async function exportGaussian16() {
   const status = $("export-status");
   const btn = $("export-g16-com");
   if (btn) btn.disabled = true;
   status.textContent = "Building Gaussian 16 input…";
   try {
-    const presetId = $("g16-preset")?.value || "association_sp";
-    const route =
-      $("g16-route")?.value?.trim() ||
-      G16_PRESETS[presetId]?.route ||
-      G16_PRESETS.association_sp.route;
-    if (!route.startsWith("#")) {
-      throw new Error("Route line must start with # (e.g. #p B3LYP/6-31G(d) …).");
-    }
-
-    getHelixCenter();
-    const center = helixCenter.clone();
-    const atoms = gatherGaussianAtoms({
-      includeDna: $("g16-include-dna")?.checked ?? true,
-      includeOxalate: $("g16-include-oxalate")?.checked ?? true,
-      includeWater: $("g16-include-water")?.checked ?? true,
-      clusterRadius: Number($("g16-radius")?.value || 0),
-      maxAtoms: Number($("g16-max-atoms")?.value || 0),
-      center,
-    });
-
-    if (atoms.length < 3) {
-      throw new Error("Fewer than 3 atoms selected — widen cluster radius or filters.");
-    }
-    if (atoms.length > 250) {
-      throw new Error(
-        `${atoms.length} atoms is too large for a typical G16 cluster job — lower max atoms or radius.`
-      );
-    }
-
-    const charge = Number($("g16-charge")?.value ?? 0);
-    const mult = Math.max(1, Number($("g16-mult")?.value ?? 1));
-    const comText = buildGaussianComText({
-      chk: ($("g16-chk")?.value || `${exportSlug()}_g16.chk`).trim(),
-      mem: ($("g16-mem")?.value || "16GB").trim(),
-      nproc: Math.max(1, Number($("g16-nproc")?.value || 1)),
-      route,
-      charge,
-      mult,
-      title: `${MODEL.title || exportSlug()} — ${atoms.length} atoms`,
-      atoms,
-    });
-
-    downloadBlob(
-      new Blob([comText], { type: "text/plain" }),
-      `${exportSlug()}_g16.com`
-    );
-    status.textContent = `Saved Gaussian .com (${atoms.length} atoms, charge ${charge}, mult ${mult}). Open in GaussView → Run.`;
+    const { comText, atoms, charge, mult } = prepareGaussianJob();
+    downloadBlob(new Blob([comText], { type: "text/plain" }), `${exportSlug()}_g16.com`);
+    status.textContent = `Saved Gaussian .com (${atoms.length} atoms, charge ${charge}, mult ${mult}).`;
   } catch (err) {
     status.textContent = `G16 export failed: ${err.message || err}`;
   } finally {
     if (btn) btn.disabled = false;
+  }
+}
+
+async function exportGaussianGaussView() {
+  const status = $("export-status");
+  const btn = $("export-g16-gjf");
+  if (btn) btn.disabled = true;
+  status.textContent = "Building GaussView input…";
+  try {
+    const { comText, atoms, charge, mult, slug } = prepareGaussianJob({ forGaussView: true });
+    const stem = `${slug}_g16`;
+    if (g16ServerAvailable) {
+      const data = await fetchG16Json("/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ com: comText, label: slug, format: "both" }),
+      });
+      const gjf = data.paths?.gjf || `${data.exportsDir}/${stem}.gjf`;
+      status.textContent = `GaussView files saved (${atoms.length} atoms, charge ${charge}, mult ${mult}): ${gjf} — open in GaussView (File → Open).`;
+    } else {
+      downloadBlob(new Blob([comText], { type: "text/plain" }), `${stem}.gjf`);
+      status.textContent = `Downloaded ${stem}.gjf (${atoms.length} atoms). Open in GaussView; chk is ${slug}_g16.chk in the same folder.`;
+    }
+  } catch (err) {
+    status.textContent = `GaussView export failed: ${err.message || err}`;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function submitGaussian16() {
+  const status = $("export-status");
+  const btn = $("submit-g16");
+  if (btn) {
+    btn.dataset.busy = "1";
+    btn.disabled = true;
+    btn.classList.add("is-busy");
+  }
+  status.textContent = "Submitting Gaussian job…";
+  try {
+    const { comText, atoms, charge, mult } = prepareGaussianJob();
+    const data = await fetchG16Json("/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ com: comText, label: exportSlug() }),
+    });
+    status.textContent = `Submitted job ${data.jobId} (${atoms.length} atoms, charge ${charge}, mult ${mult}).`;
+    await refreshG16Jobs(data.jobId);
+    if (!g16PollTimer) {
+      g16PollTimer = setInterval(() => refreshG16Jobs(), 3000);
+    }
+  } catch (err) {
+    status.textContent = `G16 submit failed: ${err.message || err}`;
+  } finally {
+    if (btn) {
+      delete btn.dataset.busy;
+      btn.classList.remove("is-busy");
+    }
+    updateG16SubmitButton();
+  }
+}
+
+async function cancelG16Job() {
+  const sel = $("g16-job-select");
+  const id = sel?.value;
+  if (!id) return;
+  const status = $("export-status");
+  try {
+    await fetchG16Json(`/jobs/${id}/cancel`, { method: "POST" });
+    status.textContent = `Cancelled job ${id}.`;
+    await refreshG16Jobs(id);
+  } catch (err) {
+    status.textContent = `Cancel failed: ${err.message || err}`;
   }
 }
 
@@ -2165,6 +2394,29 @@ function ui() {
   }
   const g16Export = $("export-g16-com");
   if (g16Export) g16Export.addEventListener("click", () => exportGaussian16());
+  const g16Gjf = $("export-g16-gjf");
+  if (g16Gjf) g16Gjf.addEventListener("click", () => exportGaussianGaussView());
+  const g16Submit = $("submit-g16");
+  if (g16Submit) {
+    g16Submit.disabled = true;
+    g16Submit.addEventListener("click", () => submitGaussian16());
+  }
+  const g16JobSel = $("g16-job-select");
+  if (g16JobSel) {
+    g16JobSel.addEventListener("change", async () => {
+      const id = g16JobSel.value;
+      if (!id) return;
+      try {
+        const job = await fetchG16Json(`/jobs/${id}`);
+        updateG16JobLog(job);
+      } catch (_) {
+        /* ignore */
+      }
+    });
+  }
+  const g16Cancel = $("g16-cancel-job");
+  if (g16Cancel) g16Cancel.addEventListener("click", () => cancelG16Job());
+  checkG16Server();
   applyUi();
 }
 
