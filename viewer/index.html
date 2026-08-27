@@ -12,20 +12,17 @@
       <aside id="panel">
         <header>
           <h1>DNA–CaOx</h1>
-          <p class="sub" id="source-label">Every other P (30 Å, FIRE/OMM)</p>
+          <p class="sub" id="source-label">Gel</p>
         </header>
 
         <section>
           <h2>Cut</h2>
           <div class="row">
-            <button type="button" id="geom-templating">Templating gel</button>
-            <button type="button" id="geom-templating-thick">Thick gel (5-row)</button>
+            <button type="button" id="geom-templating" class="active">Gel</button>
+            <button type="button" id="geom-templating-thick">5-row gel + MD</button>
+            <button type="button" id="geom-templating-10shell">10-row gel +MD</button>
             <button type="button" id="geom-templating-15shell">15-row gel + MD</button>
-            <button type="button" id="geom-nodna">No-DNA blob</button>
-          </div>
-          <div class="row" style="margin-top:6px">
-            <button type="button" id="geom-shell-lattice" class="active">Saturated shell</button>
-            <button type="button" id="geom-slab">Slab</button>
+            <button type="button" id="geom-nodna">Blob</button>
           </div>
           <p class="hint" id="cut-label"></p>
         </section>
@@ -87,15 +84,15 @@
             <span id="dmin-v">0 Å</span>
           </label>
           <label>Max distance from P
-            <input type="range" id="dmax" min="0" max="40" value="40" step="0.5" />
-            <span id="dmax-v">40 Å</span>
+            <input type="range" id="dmax" min="0" max="75" value="75" step="0.5" />
+            <span id="dmax-v">75 Å</span>
           </label>
           <label>Peel radius
-            <input type="range" id="rmax" min="8" max="50" value="50" step="0.5" />
-            <span id="rmax-v">50 Å</span>
+            <input type="range" id="rmax" min="8" max="75" value="75" step="0.5" />
+            <span id="rmax-v">75 Å</span>
           </label>
           <label>Axial slab
-            <input type="range" id="slab" min="4" max="50" value="50" step="0.5" />
+            <input type="range" id="slab" min="4" max="75" value="75" step="0.5" />
             <span id="slab-v">full</span>
           </label>
         </section>
@@ -133,14 +130,66 @@
           <div class="row" style="margin-top:6px">
             <button type="button" id="export-pdf">PDF (4×)</button>
           </div>
+          <h3 class="subhead">Gaussian 16</h3>
+          <label>Preset
+            <select id="g16-preset">
+              <option value="association_sp">Association SP (B3LYP-D3BJ, SMD water)</option>
+              <option value="opt_freq">Opt + Freq cluster</option>
+              <option value="screen_pm6">PM6 screening (large cluster)</option>
+              <option value="lanl2dz_ca">B3LYP/LANL2DZ (Ca ECP)</option>
+              <option value="custom">Custom route</option>
+            </select>
+          </label>
+          <label>Route line
+            <input type="text" id="g16-route" spellcheck="false" />
+          </label>
+          <div class="row g16-row">
+            <label>Charge
+              <input type="number" id="g16-charge" value="-1" step="1" />
+            </label>
+            <label>Mult.
+              <input type="number" id="g16-mult" value="1" min="1" step="1" />
+            </label>
+            <button type="button" id="g16-estimate-charge" class="btn-compact">Est. charge</button>
+          </div>
+          <div class="row g16-row">
+            <label>%mem
+              <input type="text" id="g16-mem" value="16GB" />
+            </label>
+            <label>%nproc
+              <input type="number" id="g16-nproc" value="16" min="1" />
+            </label>
+          </div>
+          <label>Checkpoint
+            <input type="text" id="g16-chk" spellcheck="false" />
+          </label>
+          <label>Cluster radius (Å, 0 = all)
+            <input type="number" id="g16-radius" value="12" min="0" max="80" step="0.5" />
+          </label>
+          <label>Max atoms
+            <input type="number" id="g16-max-atoms" value="120" min="10" max="500" step="1" />
+          </label>
+          <label class="checkbox-row"><input type="checkbox" id="g16-filter-visible" checked /> Use Ca distance / phase filters</label>
+          <label class="checkbox-row"><input type="checkbox" id="g16-hotspots-only" /> Ca hotspots only</label>
+          <label class="checkbox-row"><input type="checkbox" id="g16-include-dna" checked /> DNA (P, C1′, N)</label>
+          <label class="checkbox-row"><input type="checkbox" id="g16-include-oxalate" checked /> Oxalate (C₂O₄)</label>
+          <label class="checkbox-row"><input type="checkbox" id="g16-include-water" checked /> Water O</label>
+          <div class="row" style="margin-top:6px">
+            <button type="button" id="export-g16-com">Export .com</button>
+          </div>
+          <p class="hint" id="g16-hint">
+            Cluster QM only (≈50–150 atoms). Implicit water (SMD/PCM) preferred; exported waters are O only — add H in GaussView or drop waters.
+            Classical MD: DNA OL15/BSC1 + Ca 12-6-4 or NBFIX; oxalate GAFF2 with RESP charges from a Gaussian ESP.
+          </p>
           <p class="hint" id="export-status">PNG or print-ready PDF (embedded high-res raster).</p>
         </section>
 
         <p class="hint">
           Start from the project folder with <code>python3 -m http.server 8765</code>
           and open <code>http://localhost:8765/viewer/</code>.
-          Drag to rotate (around DNA helix center), scroll to zoom.
-          Pan: two-finger scroll/drag, two-finger click+drag, Space+drag, right-drag, Ctrl/Cmd+drag. Pinch to zoom.
+          Drag to rotate. Two-finger scroll/drag pans; two-finger click+drag pans too.
+          Right-drag, Shift+drag, or Space+drag also pan. Pinch/Ctrl+scroll zooms.
+          Rotation stays centered on the DNA helix.
         </p>
         <p class="hint" id="visible-count"></p>
       </aside>

@@ -45,7 +45,7 @@ from plot_sleeve_diagram import helix_basis  # noqa: E402
 
 SEED_PDB = ROOT / "DNA_CaOx_growth.pdb"
 OUT = ROOT / "viewer" / "model-data.js"
-DEFAULT_GEOM = "shell_lattice"
+DEFAULT_GEOM = "templating_gel"
 
 # Viewer CUT options (export only these into model-data.js).
 GEOMETRIES = {
@@ -54,7 +54,7 @@ GEOMETRIES = {
         "csv": ROOT
         / "figures/crystallinity/DNA_CaOx_templating_gel_omm_ca_metrics.csv",
         "seeds": ROOT / "DNA_CaOx_templating_gel_seeds.pdb",
-        "title": "Templating gel (all P, honest FIRE)",
+        "title": "Gel",
         "cut": "220 CaOx (44 at P + 88 second-row + 88 third-row) and extra waters; FIRE with no COM targets, gel unfrozen",
         "seedRadius": 24.0,
         "cutKind": "spheres",
@@ -66,20 +66,32 @@ GEOMETRIES = {
         "csv": ROOT
         / "figures/crystallinity/DNA_CaOx_templating_gel_thick_omm_ca_metrics.csv",
         "seeds": ROOT / "DNA_CaOx_templating_gel_thick_seeds.pdb",
-        "title": "Templating gel thick (5-row coat)",
+        "title": "5-row gel + MD",
         "cut": "396 CaOx (44 at P + 352 coat) and ~800 extra waters; honest FIRE, no COM targets",
         "seedRadius": 30.0,
         "cutKind": "spheres",
         "oxalate": True,
         "traj": "trajectories/DNA_CaOx_templating_gel_thick_fire.trj.json",
     },
+    "templating_gel_10shell": {
+        "pdb": ROOT / "DNA_CaOx_templating_gel_10shell_omm.pdb",
+        "csv": ROOT
+        / "figures/crystallinity/DNA_CaOx_templating_gel_10shell_omm_ca_metrics.csv",
+        "seeds": ROOT / "DNA_CaOx_templating_gel_10shell_seeds.pdb",
+        "title": "10-row gel +MD",
+        "cut": "616 CaOx (44 at P + 572 coat, 10 rows) + ~1300 waters; FIRE + NVT MD",
+        "seedRadius": 50.0,
+        "cutKind": "spheres",
+        "oxalate": True,
+        "traj": "trajectories/DNA_CaOx_templating_gel_10shell_fire.trj.json",
+    },
     "templating_gel_15shell": {
         "pdb": ROOT / "DNA_CaOx_templating_gel_15shell_omm.pdb",
         "csv": ROOT
         / "figures/crystallinity/DNA_CaOx_templating_gel_15shell_omm_ca_metrics.csv",
         "seeds": ROOT / "DNA_CaOx_templating_gel_15shell_seeds.pdb",
-        "title": "Templating gel 15-row coat + MD",
-        "cut": "P + 14 disordered coat shells (~70 Å); honest FIRE + NVT MD trajectory",
+        "title": "15-row gel + MD",
+        "cut": "836 CaOx (44 at P + 792 coat, 15 rows) + ~1800 waters; FIRE + 0.1 ns NVT MD",
         "seedRadius": 72.0,
         "cutKind": "spheres",
         "oxalate": True,
@@ -89,34 +101,13 @@ GEOMETRIES = {
         "pdb": ROOT / "DNA_CaOx_templating_gel_nodna_omm.pdb",
         "csv": ROOT
         / "figures/crystallinity/DNA_CaOx_templating_gel_nodna_omm_ca_metrics.csv",
-        "seeds": ROOT / "DNA_CaOx_templating_gel_seeds.pdb",
-        "title": "No-DNA CaOx blob (honest FIRE)",
+        "seeds": None,
+        "title": "Blob",
         "cut": "Same unit count as templating gel, random sphere, no DNA, no COM targets",
         "seedRadius": 24.0,
         "cutKind": "spheres",
         "oxalate": True,
         "traj": "trajectories/DNA_CaOx_templating_gel_nodna_fire.trj.json",
-    },
-    "shell_lattice": {
-        "pdb": ROOT / "DNA_CaOx_gel_altP_geom_shell_lattice_omm.pdb",
-        "csv": ROOT
-        / "figures/crystallinity/DNA_CaOx_gel_altP_geom_shell_lattice_omm_ca_metrics.csv",
-        "seeds": ROOT / "DNA_CaOx_gel_altP_geom_seeds.pdb",
-        "title": "Gel + saturated CaOx shell",
-        "cut": "Frozen gel; saturated CaOx shell to 30 Å (gel coat → intermediate → pre-crystal → bulk)",
-        "seedRadius": 28.0,
-        "cutKind": "spheres",
-        "oxalate": True,
-        "traj": "trajectories/DNA_CaOx_gel_altP_geom_shell_lattice_fire.trj.json",
-    },
-    "slab": {
-        "pdb": ROOT / "DNA_CaOx_growth_whewellite30A_dls.pdb",
-        "csv": ROOT
-        / "figures/crystallinity/DNA_CaOx_growth_whewellite30A_slab_dls_ca_metrics.csv",
-        "title": "Cylinder (DNA-length coating)",
-        "cut": "cylinder along DNA, 30 Å from the duplex envelope",
-        "seedRadius": 30.0,
-        "cutKind": "cylinder",
     },
 }
 
@@ -421,7 +412,154 @@ def hotspot_clusters_for_viewer(
     return clusters_out
 
 
-def phase_envelope(pts, pitch=2.8, sigma=1.5, iso_frac=0.2, y_clip=None):
+def _cluster_bounding_sphere(pts: np.ndarray, margin: float = 2.0) -> tuple[np.ndarray, float]:
+    cen = pts.mean(axis=0)
+    rad = float(np.linalg.norm(pts - cen, axis=1).max()) + margin
+    return cen, rad
+
+
+def merge_overlapping_hotspot_groups(
+    groups: list[np.ndarray],
+    hx_ca: np.ndarray,
+    envelope_bleed: float,
+) -> list[np.ndarray]:
+    """Union-find merge hotspot groups whose occupancy envelopes would overlap."""
+    if len(groups) <= 1:
+        return groups
+    centers: list[np.ndarray] = []
+    radii: list[float] = []
+    for g in groups:
+        cen, rad = _cluster_bounding_sphere(hx_ca[g])
+        centers.append(cen)
+        radii.append(rad)
+
+    n = len(groups)
+    parent = list(range(n))
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    def union(i: int, j: int) -> None:
+        pi, pj = find(i), find(j)
+        if pi != pj:
+            parent[pj] = pi
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            d = float(np.linalg.norm(centers[i] - centers[j]))
+            if d <= radii[i] + radii[j] + envelope_bleed:
+                union(i, j)
+
+    merged: dict[int, list[int]] = {}
+    for i in range(n):
+        root = find(i)
+        merged.setdefault(root, []).extend(groups[i].tolist())
+    return [np.unique(np.asarray(ix, int)) for ix in merged.values()]
+
+
+def hotspot_groups_for_envelope(hx_ca: np.ndarray, hotspot: np.ndarray) -> list[np.ndarray]:
+    """Spatial hotspot Ca groups; singleton hotspots kept as one-point groups."""
+    hot_ix = np.where(hotspot)[0]
+    if len(hot_ix) == 0:
+        return []
+    sub_pts = hx_ca[hot_ix]
+    clustered_local: set[int] = set()
+    groups: list[np.ndarray] = []
+    for cl in cluster_local(sub_pts, cutoff=HOTSPOT_CLUSTER_CUT, min_size=2):
+        local = np.asarray(cl, int)
+        clustered_local.update(local.tolist())
+        groups.append(hot_ix[local])
+    for local_i in range(len(hot_ix)):
+        if local_i not in clustered_local:
+            groups.append(hot_ix[local_i : local_i + 1])
+    nucleation = ENVELOPE_PARAMS["nucleation"]
+    bleed = float(nucleation["sigma"] * nucleation["pitch"] * 1.5)
+    return merge_overlapping_hotspot_groups(groups, hx_ca, bleed)
+
+
+def concat_envelopes(env_list: list[dict]) -> dict:
+    verts: list[list[float]] = []
+    indices: list[int] = []
+    base = 0
+    for env in env_list:
+        if not env.get("vertices"):
+            continue
+        verts.extend(env["vertices"])
+        for idx in env["indices"]:
+            indices.append(int(idx) + base)
+        base += len(env["vertices"])
+    return {"vertices": verts, "indices": indices}
+
+
+def nucleation_envelope_merged(hx_ca: np.ndarray, hotspot: np.ndarray) -> dict:
+    """One occupancy shell per merged hotspot patch (overlapping clusters combined)."""
+    groups = hotspot_groups_for_envelope(hx_ca, hotspot)
+    if not groups:
+        return {"vertices": [], "indices": []}
+    params = ENVELOPE_PARAMS["nucleation"]
+    env_list = []
+    for g in groups:
+        pts = hx_ca[g]
+        if len(pts) < 1:
+            continue
+        env = phase_envelope(pts, **params)
+        if env["vertices"]:
+            env_list.append(env)
+    if not env_list:
+        return {"vertices": [], "indices": []}
+    if len(env_list) == 1:
+        return env_list[0]
+    return concat_envelopes(env_list)
+
+
+def clip_envelope_outside_cylinder(env: dict, r_min: float) -> dict:
+    """Remove envelope triangles that cross inside the DNA phosphate cylinder."""
+    if not env.get("vertices") or r_min <= 0:
+        return env
+    verts = np.asarray(env["vertices"], float)
+    tris = np.asarray(env["indices"], int)
+    if tris.size == 0:
+        return env
+    if tris.ndim == 1:
+        tris = tris.reshape(-1, 3)
+    inside = np.hypot(verts[:, 0], verts[:, 2]) < r_min
+    keep = [
+        [int(a), int(b), int(c)]
+        for a, b, c in tris
+        if not (inside[a] or inside[b] or inside[c])
+    ]
+    if not keep:
+        return {"vertices": [], "indices": []}
+    keep_tris = np.asarray(keep, int)
+    used = np.unique(keep_tris.ravel())
+    remap = {int(old): new for new, old in enumerate(used)}
+    new_verts = verts[used]
+    new_tris = np.array([[remap[a], remap[b], remap[c]] for a, b, c in keep_tris], int)
+    return {
+        "vertices": [[round(float(x), 2) for x in v] for v in new_verts],
+        "indices": new_tris.reshape(-1).tolist(),
+    }
+
+
+def envelope_dna_r_min(r_phosphate: float, sigma: float, pitch: float) -> float:
+    """Minimum axis radius for occupancy envelopes — keeps shell outside DNA."""
+    if not np.isfinite(r_phosphate) or r_phosphate <= 0:
+        return 0.0
+    bleed = float(sigma * pitch)
+    return float(r_phosphate) + max(0.5, bleed * 0.4)
+
+
+def phase_envelope(
+    pts,
+    pitch=2.8,
+    sigma=1.5,
+    iso_frac=0.2,
+    y_clip=None,
+    r_min=None,
+):
     if len(pts) < 4:
         return {"vertices": [], "indices": []}
     mins = pts.min(axis=0) - 3.0 * pitch
@@ -434,16 +572,24 @@ def phase_envelope(pts, pitch=2.8, sigma=1.5, iso_frac=0.2, y_clip=None):
     ix = np.clip(((pts - mins) / pitch).astype(int), 0, np.array(shape) - 1)
     np.add.at(dens, (ix[:, 0], ix[:, 1], ix[:, 2]), 1.0)
     dens = gaussian_filter(dens, sigma=sigma)
+    if r_min is not None and r_min > 0:
+        xs = mins[0] + np.arange(shape[0]) * pitch
+        zs = mins[2] + np.arange(shape[2]) * pitch
+        inside = np.hypot(xs[:, None, None], zs[None, None, :]) < r_min
+        dens = np.where(inside, 0.0, dens)
     peak = float(dens.max())
     if peak <= 0:
         return {"vertices": [], "indices": []}
     verts, tris = marching_tets(dens, mins, pitch, iso_frac * peak)
     if len(tris) == 0:
         return {"vertices": [], "indices": []}
-    return {
+    env = {
         "vertices": [[round(float(x), 2) for x in v] for v in verts],
         "indices": tris.reshape(-1).tolist(),
     }
+    if r_min is not None and r_min > 0:
+        env = clip_envelope_outside_cylinder(env, r_min)
+    return env
 
 
 def load_dna(atoms):
@@ -541,7 +687,6 @@ def oxalate_segments(atoms, origin, e_x, axis, e_y):
 def build_model(geom: str) -> dict:
     spec = GEOMETRIES[geom]
     pdb, csv_path = spec["pdb"], spec["csv"]
-    seed_path = spec.get("seeds", SEED_PDB)
     print(f"\n=== {geom}: {pdb.name} ===", flush=True)
     atoms, _ = parse_atoms(pdb)
     nuc = [a for a in atoms if a["resname"] == "NUC"]
@@ -552,11 +697,18 @@ def build_model(geom: str) -> dict:
         origin = ca_pts.mean(axis=0) if len(ca_pts) else np.zeros(3)
         axis = np.array([0.0, 1.0, 0.0])
         zmin, zmax, r_dna = -20.0, 20.0, 12.0
-    try:
-        seeds = load_growth_seed_positions(seed_path)
-    except SystemExit:
-        seeds = {i + 1: ca_pts[i] for i in range(min(4, len(ca_pts)))}
-    e_x, e_y = helix_basis(origin, axis, seeds)
+    if spec.get("seeds") is None:
+        seeds = {}
+    else:
+        seed_path = spec.get("seeds", SEED_PDB)
+        try:
+            seeds = load_growth_seed_positions(seed_path)
+        except SystemExit:
+            seeds = {i + 1: ca_pts[i] for i in range(min(4, len(ca_pts)))}
+    basis_seeds = seeds if seeds else {
+        i + 1: ca_pts[i] for i in range(min(4, len(ca_pts)))
+    }
+    e_x, e_y = helix_basis(origin, axis, basis_seeds)
 
     strands, pairs = load_dna(atoms)
     strands, pairs, seed_xyz = transform_strands(
@@ -615,16 +767,27 @@ def build_model(geom: str) -> dict:
     )
 
     envelopes = {}
+    amorphous_r_min = envelope_dna_r_min(
+        r_phosphate,
+        ENVELOPE_PARAMS["amorphous"]["sigma"],
+        ENVELOPE_PARAMS["amorphous"]["pitch"],
+    )
     for name, idx in PHASE_INDEX.items():
         pts = hx_ca[(phase == idx) & outward]
         print(f"envelope {name}: {len(pts)} Ca (outward of P cylinder) ...", flush=True)
-        envelopes[name] = phase_envelope(pts, **ENVELOPE_PARAMS[name])
+        params = dict(ENVELOPE_PARAMS[name])
+        if name == "amorphous" and amorphous_r_min > 0:
+            params["r_min"] = amorphous_r_min
+            print(f"  DNA cylinder clip r_min={amorphous_r_min:.2f} Å", flush=True)
+        envelopes[name] = phase_envelope(pts, **params)
         nv = len(envelopes[name]["vertices"])
         nt = len(envelopes[name]["indices"]) // 3
         print(f"  {nv} verts, {nt} tris")
     hot_pts = hx_ca[hotspot]
     print(f"envelope nucleation: {len(hot_pts)} hotspot Ca ...", flush=True)
-    envelopes["nucleation"] = phase_envelope(hot_pts, **ENVELOPE_PARAMS["nucleation"])
+    hot_groups = hotspot_groups_for_envelope(hx_ca, hotspot)
+    print(f"  {len(hot_groups)} merged hotspot patch(es) for envelope", flush=True)
+    envelopes["nucleation"] = nucleation_envelope_merged(hx_ca, hotspot)
     nv = len(envelopes["nucleation"]["vertices"])
     nt = len(envelopes["nucleation"]["indices"]) // 3
     print(f"  {nv} verts, {nt} tris")

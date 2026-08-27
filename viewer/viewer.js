@@ -1,17 +1,17 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-const MODELS = window.DNA_CAOX_MODELS || { shell_lattice: window.DNA_CAOX_MODEL };
-const DEFAULT_GEOM = "shell_lattice";
+const MODELS = window.DNA_CAOX_MODELS || { templating_gel: window.DNA_CAOX_MODEL };
+const DEFAULT_GEOM = "templating_gel";
 let MODEL =
   MODELS[DEFAULT_GEOM] ||
   MODELS.templating_gel ||
-  MODELS.slab ||
   window.DNA_CAOX_MODEL;
 if (!MODEL) {
   throw new Error("model-data.js did not load");
 }
 
+const FILTER_SLAB_FULL = 74;
 const PHASES = ["amorphous", "intermediate", "crystalline"];
 // Warm gold yellow — triad with intermediate purple (#7570b3) and amorphous teal (#1b9e77)
 const ACCENT_YELLOW = {
@@ -85,37 +85,41 @@ controls.dampingFactor = 0.08;
 controls.autoRotate = false;
 controls.autoRotateSpeed = 0.45; // ~2.2 min per orbit at 60 fps
 controls.zoomToCursor = false;
-controls.enablePan = false; // custom pan moves camera; pivot stays on helix axis
+controls.enablePan = false; // all pan via viewPan below
+controls.touches = { ONE: THREE.TOUCH.ROTATE };
+controls.mouseButtons = {
+  LEFT: THREE.MOUSE.ROTATE,
+  MIDDLE: THREE.MOUSE.DOLLY,
+  RIGHT: THREE.MOUSE.PAN,
+};
 controls.target.set(0, 0, 0);
 controls.cursor.copy(controls.target);
 
-const orbitPivot = new THREE.Vector3();
+const helixCenter = new THREE.Vector3();
 const panRight = new THREE.Vector3();
 const panUp = new THREE.Vector3();
 const viewPan = new THREE.Vector3();
 const panState = { active: false, pointerId: null, lastX: 0, lastY: 0 };
 let spacePanArm = false;
+let canvasPointers = 0;
 
 function getHelixCenter() {
   const hx = MODEL.helix || {};
   const yMid = 0.5 * ((hx.dnaZmin ?? 0) + (hx.dnaZmax ?? 0));
-  orbitPivot.set(0, yMid, 0);
-  return orbitPivot;
+  helixCenter.set(0, yMid, 0);
+  return helixCenter;
 }
 
-function lockOrbitToHelixCenter() {
+function syncOrbitTarget() {
   getHelixCenter();
-  controls.target.copy(orbitPivot).add(viewPan);
-  controls.cursor.copy(controls.target);
+  controls.target.copy(helixCenter);
+  controls.cursor.copy(helixCenter);
 }
 
 function panPixelScale() {
   const el = canvas;
   if (!el.clientHeight) return 0;
-  getHelixCenter();
-  panUp.copy(orbitPivot).add(viewPan); // temp: orbit target
-  panRight.copy(camera.position).sub(panUp);
-  let dist = panRight.length();
+  let dist = camera.position.distanceTo(controls.target);
   dist *= Math.tan((camera.fov * Math.PI) / 360);
   return (2 * dist) / el.clientHeight;
 }
@@ -133,25 +137,23 @@ function wheelPanDeltas(e) {
   return { dx, dy };
 }
 
-function panCameraByPixels(deltaX, deltaY) {
+function panViewByPixels(deltaX, deltaY) {
   const scale = panPixelScale();
   if (!scale) return;
   camera.updateMatrixWorld();
   panRight.setFromMatrixColumn(camera.matrixWorld, 0).multiplyScalar(-deltaX * scale);
   viewPan.add(panRight);
-  camera.position.add(panRight);
   panUp.setFromMatrixColumn(camera.matrixWorld, 1).multiplyScalar(deltaY * scale);
   viewPan.add(panUp);
-  camera.position.add(panUp);
-  lockOrbitToHelixCenter();
 }
 
 function wantsPanPointer(e) {
-  if (spacePanArm) return true;
+  if (spacePanArm && e.button === 0) return true;
+  if (canvasPointers > 1) return true;
   return (
     e.button === 2 ||
     e.button === 1 ||
-    (e.button === 0 && (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey))
+    (e.button === 0 && (e.shiftKey || e.altKey))
   );
 }
 
@@ -162,7 +164,7 @@ function onDocumentPanMove(e) {
   const dy = e.clientY - panState.lastY;
   panState.lastX = e.clientX;
   panState.lastY = e.clientY;
-  if (dx || dy) panCameraByPixels(dx, dy);
+  if (dx || dy) panViewByPixels(dx, dy);
   e.preventDefault();
 }
 
@@ -178,6 +180,47 @@ function onDocumentPanEnd(e) {
   } catch (_) {
     /* ignore */
   }
+}
+
+function beginPanDrag(e) {
+  controls.state = -1;
+  panState.active = true;
+  panState.pointerId = e.pointerId;
+  panState.lastX = e.clientX;
+  panState.lastY = e.clientY;
+  if (e.pointerId === -1) {
+    document.addEventListener("mousemove", onMousePanMove);
+    document.addEventListener("mouseup", onMousePanEnd);
+  } else {
+    document.addEventListener("pointermove", onDocumentPanMove);
+    document.addEventListener("pointerup", onDocumentPanEnd);
+    document.addEventListener("pointercancel", onDocumentPanEnd);
+    try {
+      canvas.setPointerCapture(e.pointerId);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  e.preventDefault();
+  e.stopImmediatePropagation();
+}
+
+function onMousePanMove(e) {
+  if (!panState.active || panState.pointerId !== -1) return;
+  const dx = e.clientX - panState.lastX;
+  const dy = e.clientY - panState.lastY;
+  panState.lastX = e.clientX;
+  panState.lastY = e.clientY;
+  if (dx || dy) panViewByPixels(dx, dy);
+  e.preventDefault();
+}
+
+function onMousePanEnd(e) {
+  if (!panState.active || panState.pointerId !== -1) return;
+  panState.active = false;
+  panState.pointerId = null;
+  document.removeEventListener("mousemove", onMousePanMove);
+  document.removeEventListener("mouseup", onMousePanEnd);
 }
 
 function setupCanvasPan() {
@@ -196,74 +239,61 @@ function setupCanvasPan() {
   canvas.addEventListener(
     "pointerdown",
     (e) => {
+      canvasPointers++;
       if (!wantsPanPointer(e)) return;
-      panState.active = true;
-      panState.pointerId = e.pointerId;
-      panState.lastX = e.clientX;
-      panState.lastY = e.clientY;
-      document.addEventListener("pointermove", onDocumentPanMove);
-      document.addEventListener("pointerup", onDocumentPanEnd);
-      document.addEventListener("pointercancel", onDocumentPanEnd);
-      try {
-        canvas.setPointerCapture(e.pointerId);
-      } catch (_) {
-        /* ignore */
-      }
-      e.preventDefault();
-      e.stopImmediatePropagation();
+      beginPanDrag(e);
     },
     { capture: true }
   );
 
   canvas.addEventListener(
-    "wheel",
+    "pointerup",
     (e) => {
-      if (e.ctrlKey) return; // trackpad pinch → OrbitControls zoom
-      const { dx, dy } = wheelPanDeltas(e);
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      panCameraByPixels(-dx, -dy);
+      canvasPointers = Math.max(0, canvasPointers - 1);
     },
-    { passive: false, capture: true }
+    { capture: true }
+  );
+  canvas.addEventListener(
+    "pointercancel",
+    (e) => {
+      canvasPointers = Math.max(0, canvasPointers - 1);
+    },
+    { capture: true }
   );
 
-  // Safari / trackpad right-click drag sometimes uses mouse events only
   canvas.addEventListener(
     "mousedown",
     (e) => {
       if (!wantsPanPointer(e) || panState.active) return;
-      panState.active = true;
-      panState.pointerId = -1;
-      panState.lastX = e.clientX;
-      panState.lastY = e.clientY;
-      document.addEventListener("mousemove", onMousePanMove);
-      document.addEventListener("mouseup", onMousePanEnd);
-      e.preventDefault();
-      e.stopImmediatePropagation();
+      beginPanDrag({
+        pointerId: -1,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        preventDefault: () => e.preventDefault(),
+        stopImmediatePropagation: () => e.stopImmediatePropagation(),
+      });
     },
     { capture: true }
   );
-}
 
-function onMousePanMove(e) {
-  if (!panState.active || panState.pointerId !== -1) return;
-  const dx = e.clientX - panState.lastX;
-  const dy = e.clientY - panState.lastY;
-  panState.lastX = e.clientX;
-  panState.lastY = e.clientY;
-  if (dx || dy) panCameraByPixels(dx, dy);
-  e.preventDefault();
-}
-
-function onMousePanEnd(e) {
-  if (!panState.active || panState.pointerId !== -1) return;
-  panState.active = false;
-  panState.pointerId = null;
-  document.removeEventListener("mousemove", onMousePanMove);
-  document.removeEventListener("mouseup", onMousePanEnd);
+  // Two-finger trackpad scroll/drag → pan; pinch (ctrlKey) → OrbitControls zoom
+  const onWheelPan = (e) => {
+    if (e.ctrlKey) return;
+    if (e.target.closest("#panel")) return;
+    const app = document.getElementById("app");
+    if (!app || !app.contains(e.target)) return;
+    const { dx, dy } = wheelPanDeltas(e);
+    if (!dx && !dy) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    e.stopPropagation();
+    panViewByPixels(-dx, -dy);
+  };
+  document.addEventListener("wheel", onWheelPan, { passive: false, capture: true });
 }
 
 setupCanvasPan();
+canvas.style.touchAction = "none";
 
 scene.add(new THREE.AmbientLight(0x9aa4b2, 0.55));
 const key = new THREE.DirectionalLight(0xfff4e5, 1.15);
@@ -472,32 +502,16 @@ function buildEnvelopes() {
     if (!env || !env.vertices.length) return;
     const geom = buildEnvelopeGeometry(env);
     if (name === "nucleation") {
-      const glowMat = new THREE.MeshBasicMaterial({
-        color: ACCENT_YELLOW.glow,
-        transparent: true,
-        opacity: 0.38,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        toneMapped: false,
-      });
-      const glowMesh = new THREE.Mesh(geom.clone(), glowMat);
-      glowMesh.scale.setScalar(1.05);
-      glowMesh.userData.phase = name;
-      glowMesh.userData.glow = true;
-      glowMesh.renderOrder = 0;
-      envGroup.add(glowMesh);
-
       const mat = new THREE.MeshPhysicalMaterial({
         color: ACCENT_YELLOW.bright,
         transparent: true,
-        opacity: 0.34,
+        opacity: 0.48,
         side: THREE.DoubleSide,
         depthWrite: false,
         roughness: 0.18,
         metalness: 0.0,
         emissive: ACCENT_YELLOW.emissive,
-        emissiveIntensity: 0.9,
+        emissiveIntensity: 1.35,
         toneMapped: false,
       });
       const mesh = new THREE.Mesh(geom, mat);
@@ -509,10 +523,14 @@ function buildEnvelopes() {
     const mat = new THREE.MeshLambertMaterial({
       color: PHASE_COLOR[name] || PHASE_COLOR.intermediate,
       transparent: true,
-      opacity: name === "shell" ? 0.16 : 0.2,
+      opacity: name === "shell" ? 0.16 : name === "amorphous" ? 0.32 : 0.2,
       side: THREE.DoubleSide,
       depthWrite: false,
     });
+    if (name === "amorphous") {
+      mat.emissive = new THREE.Color(PHASE_COLOR.amorphous);
+      mat.emissiveIntensity = 0.55;
+    }
     const mesh = new THREE.Mesh(geom, mat);
     mesh.userData.phase = name;
     envGroup.add(mesh);
@@ -812,7 +830,7 @@ function syncUnrollCaption(shown, total, dmin, dmax, rmax, slab) {
   const geom = MODEL.geometry || MODEL.source || "model";
   const filter =
     `filters: d(P) ${dmin}–${dmax} Å, peel ≤${rmax} Å` +
-    (slab >= 49 ? ", full length" : `, |axis| ≤ ${slab} Å`);
+    (slab >= FILTER_SLAB_FULL ? ", full length" : `, |axis| ≤ ${slab} Å`);
   const exported = window.DNA_CAOX_EXPORTED_AT;
   const parts = [
     `${geom}: ${shown} of ${total} hotspot Ca on unroll (${filter}).` +
@@ -1132,10 +1150,8 @@ function setView(kind) {
   if (kind === "end") camera.position.set(0, r * 1.6, 0.01);
   else if (kind === "seed") camera.position.set(r * 1.35, 8, 18);
   else camera.position.set(18, 8, r * 1.15);
-  const center = getHelixCenter();
-  controls.target.copy(center);
-  controls.cursor.copy(center);
   viewPan.set(0, 0, 0);
+  syncOrbitTarget();
   controls.update();
 }
 
@@ -1272,6 +1288,7 @@ function loadGeometry(name) {
   clearGroup(shellGroup);
   clearGroup(hotspotGroup);
   clearGroup(guideGroup);
+  viewPan.set(0, 0, 0);
   hotspotMesh = null;
   hotspotGlowMesh = null;
   hotspotIndices = [];
@@ -1285,10 +1302,9 @@ function loadGeometry(name) {
   const geomIds = {
     templating_gel: "geom-templating",
     templating_gel_thick: "geom-templating-thick",
+    templating_gel_10shell: "geom-templating-10shell",
     templating_gel_15shell: "geom-templating-15shell",
     templating_nodna: "geom-nodna",
-    shell_lattice: "geom-shell-lattice",
-    slab: "geom-slab",
   };
   Object.entries(geomIds).forEach(([g, id]) => {
     const el = $(id);
@@ -1298,12 +1314,11 @@ function loadGeometry(name) {
   if (
     name === "templating_gel" ||
     name === "templating_gel_thick" ||
+    name === "templating_gel_10shell" ||
     name === "templating_gel_15shell" ||
     name === "templating_nodna"
   ) {
     setCoatView();
-  } else if (name === "shell_lattice") {
-    setNucleationView();
   } else {
     applyUi();
     setView("side");
@@ -1496,7 +1511,7 @@ function applyUi() {
   $("dmin-v").textContent = `${dmin} Å`;
   $("dmax-v").textContent = `${dmax} Å`;
   $("rmax-v").textContent = `${rmax} Å`;
-  $("slab-v").textContent = slab >= 49 ? "full" : `±${slab} Å`;
+  $("slab-v").textContent = slab >= FILTER_SLAB_FULL ? "full" : `±${slab} Å`;
 
   dnaGroup.traverse((obj) => {
     if (obj.name === "ribbon") obj.visible = $("dna-ribbons").checked;
@@ -1524,9 +1539,8 @@ function applyUi() {
     else cb = $(`ph-${ph}`);
     const on = cb ? cb.checked : true;
     mesh.visible = on;
-    if (ph === "nucleation") {
-      mesh.material.opacity = mesh.userData.glow ? op * 0.58 : op * 0.42;
-    } else if (ph === "shell") mesh.material.opacity = op * 0.65;
+    if (ph === "nucleation") mesh.material.opacity = op * 0.78; else if (ph === "shell") mesh.material.opacity = op * 0.65;
+    else if (ph === "amorphous") mesh.material.opacity = Math.min(0.92, op * 1.9);
     else mesh.material.opacity = op;
   });
   const hotEl = $("nucleation-hotspots");
@@ -1557,6 +1571,344 @@ function exportSlug() {
   return safe || g;
 }
 
+const G16_PRESETS = {
+  association_sp: {
+    route: "#p B3LYP/6-31G(d) EmpiricalDispersion=GD3BJ SCRF=(SMD,Solvent=Water)",
+    mem: "16GB",
+    nproc: 16,
+    charge: -1,
+    mult: 1,
+  },
+  opt_freq: {
+    route: "#p Opt Freq B3LYP/6-31G(d) EmpiricalDispersion=GD3BJ SCRF=(SMD,Solvent=Water)",
+    mem: "16GB",
+    nproc: 16,
+    charge: -1,
+    mult: 1,
+  },
+  screen_pm6: {
+    route: "#p PM6 SCRF=(SMD,Solvent=Water)",
+    mem: "8GB",
+    nproc: 8,
+    charge: -1,
+    mult: 1,
+  },
+  lanl2dz_ca: {
+    route: "#p B3LYP/LANL2DZ EmpiricalDispersion=GD3BJ SCRF=(SMD,Solvent=Water)",
+    mem: "16GB",
+    nproc: 16,
+    charge: -1,
+    mult: 1,
+  },
+  custom: {
+    route: "",
+    mem: "16GB",
+    nproc: 16,
+    charge: -1,
+    mult: 1,
+  },
+};
+
+function applyG16Preset(presetId) {
+  const preset = G16_PRESETS[presetId] || G16_PRESETS.association_sp;
+  const routeEl = $("g16-route");
+  const memEl = $("g16-mem");
+  const nprocEl = $("g16-nproc");
+  const chargeEl = $("g16-charge");
+  const multEl = $("g16-mult");
+  if (routeEl && presetId !== "custom") routeEl.value = preset.route;
+  if (memEl) memEl.value = preset.mem;
+  if (nprocEl) nprocEl.value = preset.nproc;
+  if (chargeEl && presetId !== "custom") chargeEl.value = preset.charge;
+  if (multEl && presetId !== "custom") multEl.value = preset.mult;
+  const chkEl = $("g16-chk");
+  if (chkEl && !chkEl.dataset.userEdited) chkEl.value = `${exportSlug()}_g16.chk`;
+}
+
+function dist3(a, b) {
+  return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+}
+
+function oxalateAtomsFromSegments(segments) {
+  if (!segments?.length) return [];
+  const tol = 0.28;
+  const pts = [];
+  const edges = [];
+
+  function addPoint(p) {
+    for (let i = 0; i < pts.length; i++) {
+      if (dist3(p, pts[i].xyz) < tol) return i;
+    }
+    pts.push({ xyz: [p[0], p[1], p[2]], element: "O", kind: "oxalate" });
+    return pts.length - 1;
+  }
+
+  segments.forEach((seg) => {
+    const a = addPoint(seg[0]);
+    const b = addPoint(seg[1]);
+    edges.push({ a, b, d: dist3(seg[0], seg[1]) });
+  });
+
+  const elements = pts.map(() => "O");
+  edges.forEach(({ a, b, d }) => {
+    if (d >= 1.15 && d <= 1.68) {
+      elements[a] = "C";
+      elements[b] = "C";
+    }
+  });
+  edges.forEach(({ a, b, d }) => {
+    if (d >= 1.0 && d <= 1.45) {
+      if (elements[a] === "C" && elements[b] === "O") elements[b] = "O";
+      else if (elements[b] === "C" && elements[a] === "O") elements[a] = "O";
+      else if (elements[a] === "C") elements[b] = "O";
+      else if (elements[b] === "C") elements[a] = "O";
+    }
+  });
+
+  return pts.map((p, i) => ({
+    element: elements[i] === "C" ? "C" : "O",
+    x: p.xyz[0],
+    y: p.xyz[1],
+    z: p.xyz[2],
+    kind: "oxalate",
+  }));
+}
+
+function currentOxalateSegments() {
+  if (oxalateLines?.geometry?.attributes?.position) {
+    const pos = oxalateLines.geometry.attributes.position.array;
+    const nSeg = pos.length / 6;
+    const segs = [];
+    for (let i = 0; i < nSeg; i++) {
+      segs.push([
+        [pos[i * 6], pos[i * 6 + 1], pos[i * 6 + 2]],
+        [pos[i * 6 + 3], pos[i * 6 + 4], pos[i * 6 + 5]],
+      ]);
+    }
+    return segs;
+  }
+  return MODEL.oxalate || [];
+}
+
+function getCaExportFilters() {
+  const phaseOn = PHASES.map((p) => $(`ph-${p}`).checked);
+  return {
+    dmin: Number($("dmin").value),
+    dmax: Number($("dmax").value),
+    rmax: Number($("rmax").value),
+    slab: Number($("slab").value),
+    phaseOn,
+    filterVisible: $("g16-filter-visible")?.checked ?? true,
+    hotspotsOnly: $("g16-hotspots-only")?.checked ?? false,
+  };
+}
+
+function gatherGaussianAtoms(options) {
+  const {
+    includeDna,
+    includeOxalate,
+    includeWater,
+    clusterRadius,
+    maxAtoms,
+    center,
+  } = options;
+  const atoms = [];
+  const caFilters = getCaExportFilters();
+
+  if (includeDna && MODEL.strands?.length) {
+    MODEL.strands.forEach((strand) => {
+      strand.residues.forEach((res, ri) => {
+        const push = (element, xyz, kind) => {
+          atoms.push({
+            element,
+            x: xyz[0],
+            y: xyz[1],
+            z: xyz[2],
+            kind,
+            resseq: res.resseq ?? ri + 1,
+            chain: strand.chain,
+          });
+        };
+        if (res.P) push("P", res.P, "dna");
+        if (res.C1) push("C", res.C1, "dna");
+        if (res.N) push("N", res.N, "dna");
+      });
+    });
+  }
+
+  for (let i = 0; i < nCa; i++) {
+    if (caFilters.hotspotsOnly && !ca.hotspot?.[i]) continue;
+    if (caFilters.filterVisible) {
+      const ph = ca.phase[i];
+      if (
+        !caFilters.phaseOn[ph] ||
+        ca.dP[i] < caFilters.dmin ||
+        ca.dP[i] > caFilters.dmax ||
+        ca.radial[i] > caFilters.rmax ||
+        Math.abs(ca.y[i]) > caFilters.slab
+      ) {
+        continue;
+      }
+    }
+    atoms.push({
+      element: "Ca",
+      x: ca.x[i],
+      y: ca.y[i],
+      z: ca.z[i],
+      kind: "ca",
+    });
+  }
+
+  if (includeOxalate) {
+    atoms.push(...oxalateAtomsFromSegments(currentOxalateSegments()));
+  }
+
+  if (includeWater && MODEL.water?.x?.length) {
+    const wx = MODEL.water.x;
+    const wy = MODEL.water.y;
+    const wz = MODEL.water.z;
+    for (let i = 0; i < wx.length; i++) {
+      if (caFilters.filterVisible) {
+        const r = Math.hypot(wx[i], wz[i]);
+        if (r > caFilters.rmax || Math.abs(wy[i]) > caFilters.slab) continue;
+      }
+      atoms.push({ element: "O", x: wx[i], y: wy[i], z: wz[i], kind: "water" });
+    }
+  }
+
+  let filtered = atoms;
+  if (clusterRadius > 0) {
+    filtered = atoms.filter((a) =>
+      Math.hypot(a.x - center.x, a.y - center.y, a.z - center.z) <= clusterRadius
+    );
+  }
+
+  if (maxAtoms > 0 && filtered.length > maxAtoms) {
+    filtered = filtered
+      .map((a) => ({
+        a,
+        d: Math.hypot(a.x - center.x, a.y - center.y, a.z - center.z),
+      }))
+      .sort((u, v) => u.d - v.d)
+      .slice(0, maxAtoms)
+      .map((row) => row.a);
+  }
+
+  return filtered;
+}
+
+function estimateGaussianCharge(atoms) {
+  let nP = 0;
+  let nCa = 0;
+  let nOxC = 0;
+  atoms.forEach((a) => {
+    if (a.element === "P") nP += 1;
+    else if (a.element === "Ca") nCa += 1;
+    else if (a.kind === "oxalate" && a.element === "C") nOxC += 1;
+  });
+  const nOxUnits = Math.floor(nOxC / 2);
+  return nP * -1 + nCa * 2 + nOxUnits * -2;
+}
+
+function gaussianElementSymbol(el) {
+  const u = String(el || "").trim();
+  if (u.length === 1) return `${u} `;
+  return u.slice(0, 2);
+}
+
+function buildGaussianComText(opts) {
+  const {
+    chk,
+    mem,
+    nproc,
+    route,
+    charge,
+    mult,
+    title,
+    atoms,
+  } = opts;
+  const lines = [
+    `%chk=${chk}`,
+    `%mem=${mem}`,
+    `%nprocshared=${nproc}`,
+    route.trim(),
+    "",
+    title || "DNA-CaOx cluster export for Gaussian 16",
+    "Helix-frame coordinates (Å). Verify charge and multiplicity before production.",
+    "",
+    `${charge} ${mult}`,
+  ];
+  atoms.forEach((a) => {
+    lines.push(
+      `${gaussianElementSymbol(a.element)} ${a.x.toFixed(6).padStart(12)} ${a.y
+        .toFixed(6)
+        .padStart(12)} ${a.z.toFixed(6).padStart(12)}`
+    );
+  });
+  lines.push("");
+  return lines.join("\n");
+}
+
+async function exportGaussian16() {
+  const status = $("export-status");
+  const btn = $("export-g16-com");
+  if (btn) btn.disabled = true;
+  status.textContent = "Building Gaussian 16 input…";
+  try {
+    const presetId = $("g16-preset")?.value || "association_sp";
+    const route =
+      $("g16-route")?.value?.trim() ||
+      G16_PRESETS[presetId]?.route ||
+      G16_PRESETS.association_sp.route;
+    if (!route.startsWith("#")) {
+      throw new Error("Route line must start with # (e.g. #p B3LYP/6-31G(d) …).");
+    }
+
+    getHelixCenter();
+    const center = helixCenter.clone();
+    const atoms = gatherGaussianAtoms({
+      includeDna: $("g16-include-dna")?.checked ?? true,
+      includeOxalate: $("g16-include-oxalate")?.checked ?? true,
+      includeWater: $("g16-include-water")?.checked ?? true,
+      clusterRadius: Number($("g16-radius")?.value || 0),
+      maxAtoms: Number($("g16-max-atoms")?.value || 0),
+      center,
+    });
+
+    if (atoms.length < 3) {
+      throw new Error("Fewer than 3 atoms selected — widen cluster radius or filters.");
+    }
+    if (atoms.length > 250) {
+      throw new Error(
+        `${atoms.length} atoms is too large for a typical G16 cluster job — lower max atoms or radius.`
+      );
+    }
+
+    const charge = Number($("g16-charge")?.value ?? 0);
+    const mult = Math.max(1, Number($("g16-mult")?.value ?? 1));
+    const comText = buildGaussianComText({
+      chk: ($("g16-chk")?.value || `${exportSlug()}_g16.chk`).trim(),
+      mem: ($("g16-mem")?.value || "16GB").trim(),
+      nproc: Math.max(1, Number($("g16-nproc")?.value || 1)),
+      route,
+      charge,
+      mult,
+      title: `${MODEL.title || exportSlug()} — ${atoms.length} atoms`,
+      atoms,
+    });
+
+    downloadBlob(
+      new Blob([comText], { type: "text/plain" }),
+      `${exportSlug()}_g16.com`
+    );
+    status.textContent = `Saved Gaussian .com (${atoms.length} atoms, charge ${charge}, mult ${mult}). Open in GaussView → Run.`;
+  } catch (err) {
+    status.textContent = `G16 export failed: ${err.message || err}`;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function captureFrame(scale, mime = "image/png", quality) {
   const cssW = canvas.clientWidth;
   const cssH = canvas.clientHeight;
@@ -1566,8 +1918,10 @@ function captureFrame(scale, mime = "image/png", quality) {
   renderer.getSize(prevSize);
   const prevPR = renderer.getPixelRatio();
 
+  camera.position.sub(viewPan);
+  syncOrbitTarget();
   controls.update();
-  lockOrbitToHelixCenter();
+  camera.position.add(viewPan);
   renderer.setPixelRatio(1);
   renderer.setSize(outW, outH, false);
   camera.aspect = outW / outH;
@@ -1580,8 +1934,10 @@ function captureFrame(scale, mime = "image/png", quality) {
   renderer.setSize(prevSize.x, prevSize.y, false);
   camera.aspect = cssW / Math.max(cssH, 1);
   camera.updateProjectionMatrix();
+  camera.position.sub(viewPan);
+  syncOrbitTarget();
   controls.update();
-  lockOrbitToHelixCenter();
+  camera.position.add(viewPan);
   renderer.render(scene, camera);
 
   return { dataUrl, width: outW, height: outH };
@@ -1699,9 +2055,9 @@ async function exportPDF(scale = 4) {
 
 function setCoatView() {
   $("dmin").value = "0";
-  $("dmax").value = "40";
-  $("rmax").value = "50";
-  $("slab").value = "50";
+  $("dmax").value = "75";
+  $("rmax").value = "75";
+  $("slab").value = "75";
   $("ph-amorphous").checked = true;
   $("ph-intermediate").checked = true;
   $("ph-crystalline").checked = true;
@@ -1722,8 +2078,9 @@ function setCoatView() {
 
 function setNucleationView() {
   $("dmin").value = "0";
-  $("dmax").value = "28";
-  $("rmax").value = "50";
+  $("dmax").value = "75";
+  $("rmax").value = "75";
+  $("slab").value = "75";
   $("ph-amorphous").checked = true;
   $("ph-intermediate").checked = true;
   $("ph-crystalline").checked = true;
@@ -1758,12 +2115,13 @@ function ui() {
   $("geom-templating-thick").addEventListener("click", () =>
     loadGeometry("templating_gel_thick")
   );
+  $("geom-templating-10shell").addEventListener("click", () =>
+    loadGeometry("templating_gel_10shell")
+  );
   $("geom-templating-15shell").addEventListener("click", () =>
     loadGeometry("templating_gel_15shell")
   );
   $("geom-nodna").addEventListener("click", () => loadGeometry("templating_nodna"));
-  $("geom-shell-lattice").addEventListener("click", () => loadGeometry("shell_lattice"));
-  $("geom-slab").addEventListener("click", () => loadGeometry("slab"));
   $("traj-step").addEventListener("input", () => {
     stopTraj();
     applyTrajFrame(Number($("traj-step").value));
@@ -1773,6 +2131,40 @@ function ui() {
   $("export-png-2x").addEventListener("click", () => exportPNG(2));
   $("export-png-4x").addEventListener("click", () => exportPNG(4));
   $("export-pdf").addEventListener("click", () => exportPDF(4));
+  const g16Preset = $("g16-preset");
+  const g16Chk = $("g16-chk");
+  if (g16Preset) {
+    g16Preset.addEventListener("change", () => applyG16Preset(g16Preset.value));
+    applyG16Preset(g16Preset.value);
+  }
+  if (g16Chk) {
+    g16Chk.addEventListener("input", () => {
+      g16Chk.dataset.userEdited = "1";
+    });
+  }
+  const g16Est = $("g16-estimate-charge");
+  if (g16Est) {
+    g16Est.addEventListener("click", () => {
+      getHelixCenter();
+      const atoms = gatherGaussianAtoms({
+        includeDna: $("g16-include-dna")?.checked ?? true,
+        includeOxalate: $("g16-include-oxalate")?.checked ?? true,
+        includeWater: $("g16-include-water")?.checked ?? true,
+        clusterRadius: Number($("g16-radius")?.value || 0),
+        maxAtoms: Number($("g16-max-atoms")?.value || 0),
+        center: helixCenter.clone(),
+      });
+      const q = estimateGaussianCharge(atoms);
+      const chargeEl = $("g16-charge");
+      if (chargeEl) chargeEl.value = q;
+      const hint = $("g16-hint");
+      if (hint) {
+        hint.textContent = `Estimated charge ${q} from ${atoms.length} atoms (P −1, Ca +2, oxalate −2 per C₂O₄). Verify before running.`;
+      }
+    });
+  }
+  const g16Export = $("export-g16-com");
+  if (g16Export) g16Export.addEventListener("click", () => exportGaussian16());
   applyUi();
 }
 
@@ -1807,9 +2199,10 @@ resize();
 window.addEventListener("resize", resize);
 
 function tick() {
-  lockOrbitToHelixCenter();
+  camera.position.sub(viewPan);
+  syncOrbitTarget();
   controls.update();
-  lockOrbitToHelixCenter();
+  camera.position.add(viewPan);
   updateScaleBar();
   renderer.render(scene, camera);
   requestAnimationFrame(tick);

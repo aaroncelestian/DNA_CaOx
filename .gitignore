@@ -1,3 +1,8 @@
 .venv/
 __pycache__/
 *.pyc
+
+DOCS/
+figures/
+md/
+viewer/trajectories/

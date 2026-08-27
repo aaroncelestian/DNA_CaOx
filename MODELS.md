@@ -58,6 +58,63 @@ Models in this project for studying whether B-DNA phosphate spacing (~6.3–7.0 
 | `COM_patch_whewellite.xyz` | 401 | XYZ copy of `COM_patch_whewellite.pdb`. |
 | `DNA_CaOx_solvated.xyz` | 1,081 | XYZ copy of `DNA_CaOx_solvated.pdb`. |
 
+## Force fields and MD models
+
+This project uses **two different MD setups**. Templating gels, no-DNA blobs, and shell FIRE runs use **Model 1**. Solution nucleation from free ions uses **Model 2**.
+
+### Model 1 — Rigid-oxalate restraint MD (gel / blob / FIRE pipeline)
+
+**Scripts:** `scripts/fire_openmm_caox.py`, `scripts/run_templating_*.py`, `scripts/run_nodna_blob.py`, `scripts/run_nucleation_pipeline.py`  
+**Potential:** `scripts/dls_caox.py` (FIRE) → same restraints in OpenMM (`CustomBondForce`, `CustomExternalForce`, `CustomNonbondedForce`)
+
+| Component | Treatment |
+|-----------|-----------|
+| Oxalate (C₂O₄) | Rigid unit per residue (WHW/COM); stiff intra-unit harmonics (`k ≈ 400` in OpenMM) |
+| Ca²⁺ | Free particle, mass 40 amu |
+| Water | **O atoms only** (HOH/OW); mass 16 amu; no hydrogens; not TIP3P |
+| DNA | Fixed (mass 0 + positional springs); unchanged during relax/MD |
+| Nonbonded physics | **No standard Coulomb/LJ** — one-sided penalty springs for O···O, Ca···Ca, WHW–DNA exclusion |
+| Restraints | Ca–O coordination to starting ligands; positional anchors; optional soft COM Ca–Ca targets (`--no-com-targets` for honest gel) |
+| Box | **Non-periodic** (vacuum droplet) |
+| Integrator | OpenMM `LangevinMiddleIntegrator`, **1 fs** timestep |
+| Typical T | 350 K (gel/blob production scripts) |
+
+**Purpose:** pack pre-built CaOx coats, remove O–O clashes, and run short **restraint MD** on already-placed units. Trajectory `E=` values are **total restraint potential energy** (kJ/mol), not AMBER free energies.
+
+**Outputs:** `*_fire.pdb`, `*_omm.pdb`, `viewer/trajectories/*_fire.trj.json`
+
+### Model 2 — AMBER solution nucleation MD
+
+**Script:** `scripts/md_nucleation.py`  
+**Force fields:** `amber14-all.xml` + `amber14/tip3pfb.xml` + `scripts/ff/oxalate.xml`
+
+| Component | Force field |
+|-----------|-------------|
+| DNA | AMBER14 **OL15** (from `DOCS/1BNA.pdb`, hydrogens added) |
+| Water | **TIP3P-FB** |
+| Ca²⁺ | **Joung/Cheatham** (via `amber14-all.xml`) |
+| Oxalate | Custom OXL residue in `scripts/ff/oxalate.xml` (harmonic bonds/angles + LJ/Coulomb) |
+| Box | **Periodic**, PME, solvent padding ~0.8 nm, neutralized |
+| Integrator | `LangevinMiddleIntegrator`, **2 fs** default, **310 K** default |
+| Start state | Ca²⁺ and oxalate in **solution** (8–14 Å from P), not pre-decorated gel |
+
+**Purpose:** ask whether DNA organizes free Ca²⁺/oxalate faster than a no-DNA control with the same ion counts. Compare `md/md_dna_*` vs `md/md_nodna_*`.
+
+**Outputs:** `md/md_dna*.pdb`, `md/md_nodna*.pdb`, `.dcd` trajectories, `figures/crystallinity/DNA_CaOx_md_observables.*`
+
+### QM (not MD)
+
+`QM_association_cluster.*` → **Gaussian** binding/association (B3LYP-D3BJ/6-31G(d) + SMD suggested). One small cluster; not whole-system dynamics.
+
+### Which pipeline uses which model?
+
+| Workflow | MD model |
+|----------|----------|
+| Templating gel (3 / 5 / 10 / 15-row) | Model 1 |
+| No-DNA blob control | Model 1 |
+| Gel + saturated shell (`run_nucleation_pipeline.py`) | Model 1 |
+| Solution assembly / growth droplets | Model 2 (`md_nucleation.py`) |
+
 ---
 
 See also `DNA_CaOx_simulation_plan.txt` for recommended compute workflows and observables.

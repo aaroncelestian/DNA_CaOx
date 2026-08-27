@@ -241,6 +241,8 @@ COAT_LAYERS_THICK = COAT_LAYERS_STANDARD + [
     {"n": 2, "r_lo": 13.5, "r_hi": 18.5, "try_edge": False, "outward_bias": 0.72},
     {"n": 2, "r_lo": 17.5, "r_hi": 22.5, "try_edge": False, "outward_bias": 0.78},
 ]
+# 10-row coat: P-bound + 9 disordered shells (~47 Å outer reach).
+N_COAT_10SHELL = 9
 # 15-row coat: P-bound + 14 disordered shells (~70 Å outer reach).
 N_COAT_15SHELL = 14
 
@@ -249,25 +251,32 @@ def coat_layers_n(n_coat: int) -> list[dict]:
     """Build *n_coat* disordered coat layers (after the P-bound row)."""
     if n_coat <= 0:
         return []
-    layers = list(COAT_LAYERS_THICK)
-    last_hi = float(layers[-1]["r_hi"]) if layers else 14.0
-    for k in range(len(layers), n_coat):
+    layers: list[dict] = []
+    last_hi = 14.0
+    for k in range(n_coat):
+        if k < len(COAT_LAYERS_THICK):
+            layer = dict(COAT_LAYERS_THICK[k])
+            layers.append(layer)
+            last_hi = float(layer["r_hi"])
+            continue
         r_lo = max(4.0, last_hi - 1.0)
         r_hi = last_hi + 4.5
         bias = min(0.88, 0.65 + 0.02 * k)
+        # One CaOx per P in outer shells keeps build/MD tractable.
         layers.append(
             {
-                "n": 2,
+                "n": 1,
                 "r_lo": r_lo,
                 "r_hi": r_hi,
-                "try_edge": k < 2,
+                "try_edge": False,
                 "outward_bias": bias,
             }
         )
         last_hi = r_hi
-    return layers[:n_coat]
+    return layers
 
 
+COAT_LAYERS_10SHELL = coat_layers_n(N_COAT_10SHELL)
 COAT_LAYERS_15SHELL = coat_layers_n(N_COAT_15SHELL)
 
 
@@ -594,6 +603,12 @@ def main():
         "writes DNA_CaOx_templating_gel_thick*.pdb — does not touch templating_gel.",
     )
     ap.add_argument(
+        "--templating-10shell",
+        action="store_true",
+        help="Ten-row templating gel (P + 9 coat shells to ~47 Å); "
+        "writes DNA_CaOx_templating_gel_10shell*.pdb — separate from other gels.",
+    )
+    ap.add_argument(
         "--templating-15shell",
         action="store_true",
         help="Fifteen-row templating gel (P + 14 coat shells to ~70 Å); "
@@ -631,6 +646,8 @@ def main():
     )
     if args.templating_15shell:
         tag = "templating_gel_15shell"
+    elif args.templating_10shell:
+        tag = "templating_gel_10shell"
     elif args.templating_thick:
         tag = "templating_gel_thick"
     elif args.templating:
@@ -727,9 +744,16 @@ def main():
             kept.append(a)
         placements[idx] = kept
 
-    templating = args.templating or args.templating_thick or args.templating_15shell
+    templating = (
+        args.templating
+        or args.templating_thick
+        or args.templating_10shell
+        or args.templating_15shell
+    )
     if args.templating_15shell:
         coat_layers = COAT_LAYERS_15SHELL
+    elif args.templating_10shell:
+        coat_layers = COAT_LAYERS_10SHELL
     elif args.templating_thick:
         coat_layers = COAT_LAYERS_THICK
     elif templating:
@@ -743,9 +767,13 @@ def main():
         else default_extra
     )
     default_waters = (
-        2800
+        1800
         if args.templating_15shell
-        else (800 if args.templating_thick else (400 if templating else 0))
+        else (
+            1300
+            if args.templating_10shell
+            else (800 if args.templating_thick else (400 if templating else 0))
+        )
     )
     extra_waters_n = (
         args.extra_waters

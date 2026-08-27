@@ -1059,10 +1059,15 @@ def run_openmm_nvt(
             )
             traj_out.append(frame)
             frames.append(frame)
-        if step % max(interval * 10, 1000) == 0 or step == n_steps:
+        if (
+            step in (1000, 10000, 100000)
+            or step % max(interval * 10, max(1, n_steps // 100)) == 0
+            or step == n_steps
+        ):
             state = context.getState(getEnergy=True)
             e = state.getPotentialEnergy().value_in_unit(kilojoule_per_mole)
-            print(f"  MD step {step}/{n_steps}  E={e:.3e} kJ/mol", flush=True)
+            pct = 100.0 * step / n_steps
+            print(f"  MD step {step}/{n_steps} ({pct:.1f}%)  E={e:.3e} kJ/mol", flush=True)
 
     state = context.getState(getPositions=True)
     pos_nm = state.getPositions(asNumpy=True)
@@ -1269,6 +1274,12 @@ def main():
         help="NVT temperature (K).",
     )
     ap.add_argument(
+        "--md-only",
+        action="store_true",
+        help="Skip FIRE minimization/OpenMM; NVT MD from input PDB coordinates "
+        "(use with --steps 0 --skip-openmm).",
+    )
+    ap.add_argument(
         "--w-gel-com",
         type=float,
         default=W_GEL_COM,
@@ -1289,6 +1300,10 @@ def main():
     args = ap.parse_args()
     if args.md_ns > 0:
         args.traj_include_openmm = True
+    if args.md_only:
+        args.steps = 0
+        args.skip_openmm = True
+        args.polish = 0
 
     in_pdb = args.pdb
     stem = output_stem(in_pdb)
@@ -1558,11 +1573,59 @@ def main():
             dna + other + whw,
             ["HEADER    FIRE RIGID-OXALATE (--skip-openmm)\n"],
         )
+        if args.md_ns > 0:
+            try:
+                traj_frames = list(traj_fire_frames) if traj_path else []
+                omm_stats = {
+                    "platform": "md-only",
+                    "e0": 0.0,
+                    "e1": 0.0,
+                    "dna_shift": 0.0,
+                    "ox_rmsd": 0.0,
+                    "n_oo_cart": 0,
+                    "min_oo_cart": None,
+                    "n_oo_rig": 0,
+                    "min_oo_rig": None,
+                }
+                md_stats = run_openmm_nvt(
+                    whw,
+                    dna_xyz,
+                    fire["tbl"],
+                    fire["ca_idx"],
+                    ns=args.md_ns,
+                    traj_interval=args.md_traj_interval,
+                    traj_out=traj_frames if traj_path else None,
+                    step_offset=1,
+                    platform_name=args.platform,
+                    freeze_resseq_le=args.freeze_resseq_le,
+                    seed_epitax=args.seed_epitax,
+                    md_pos_scale=args.md_pos_scale,
+                    temperature_k=args.md_temperature,
+                    max_iter=0 if args.md_only else 50,
+                )
+                omm_stats["md_steps"] = md_stats["n_steps"]
+                omm_stats["md_frames"] = len(md_stats["frames"])
+                write_pdb(
+                    out_omm,
+                    dna + other + whw,
+                    [
+                        "HEADER    NVT MD WHEWELLITE (MD-ONLY)\n",
+                        f"REMARK   1 {args.md_ns:.3f} ns at {args.md_temperature:.0f} K\n",
+                    ],
+                )
+                print(f"Updated {out_omm.name} after MD", flush=True)
+                if traj_path and traj_frames:
+                    write_traj_json(traj_path, len(fire["ca_idx"]), traj_frames)
+            except Exception as exc:
+                omm_err = str(exc)
+                print(f"MD failed: {omm_err}", flush=True)
 
     xyz_final = np.array([a["xyz"] for a in whw], float)
     n_oo, min_oo = inter_oo_stats(xyz_final, o_idx, gid)
 
-    if traj_path and traj_frames and args.traj_include_openmm:
+    if traj_path and traj_frames and args.traj_include_openmm and not (
+        args.skip_openmm and args.md_only
+    ):
         write_traj_json(traj_path, len(fire["ca_idx"]), traj_frames)
 
     plot_history(

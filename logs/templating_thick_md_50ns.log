@@ -1,0 +1,9 @@
+=== thick gel MD 50 ns 2026-08-27T15:48Z ===
+MD plan: 50.0 ns at 350 K, ~200 frames (every 250000 steps ≈ 250.00 ps), est. wall ~46.3 h on CPU
+
+>>> /Users/aaroncelestian/Library/Mobile Documents/com~apple~CloudDocs/HTML/DNA_CaOx/.venv/bin/python scripts/fire_openmm_caox.py /Users/aaroncelestian/Library/Mobile Documents/com~apple~CloudDocs/HTML/DNA_CaOx/DNA_CaOx_templating_gel_thick_omm.pdb --md-only --no-com-targets --freeze-beyond 0 --steps 0 --skip-openmm --traj /Users/aaroncelestian/Library/Mobile Documents/com~apple~CloudDocs/HTML/DNA_CaOx/viewer/trajectories/DNA_CaOx_templating_gel_thick_fire.trj.json --md-ns 50.0 --md-temperature 350.0 --md-traj-interval 250000 -o /Users/aaroncelestian/Library/Mobile Documents/com~apple~CloudDocs/HTML/DNA_CaOx/DNA_CaOx_templating_gel_thick_omm.pdb
+FIRE start: 396 rigid oxalate, 396 Ca, 1028 water O, frozen bodies=0 (gel≤0=0, seed=0), COM pairs=0, inter-group O-O < 2.0 Å: n=0 min=None
+COM Ca–Ca targets disabled (gel-first mode)
+Wrote DNA_CaOx_templating_gel_thick_fire.pdb
+NVT MD: 50.000 ns (50000000 steps @ 0.001 ps), T=350.0 K, pos anchor ×0.040
+  MD step 1000/50000000 (0.0%)  E=1.222e+04 kJ/mol

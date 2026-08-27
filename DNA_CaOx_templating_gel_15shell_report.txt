@@ -1,0 +1,122 @@
+DNA–CaOx gel-first model (templating_gel_15shell; no whewellite lattice)
+============================================================
+Bond-valence model for Ca2+ at DNA phosphate (non-bridging OP1/OP2)
+  Ca–O target distance (6-fold): 2.375 Å
+  Acceptable Ca–OP window: 2.20–2.55 Å
+  Placement: bidentate chelation in the O–P–O plane,
+  offset slightly outward from the helix axis (solvent-exposed).
+  Remaining valence (~1.3 v.u.) is satisfied by oxalate oxygens
+  and waters in the first shell — not preset to whewellite geometry.
+
+DNA source : DNA.pdb
+CaOx source: Whewellite ca_ox.pdb (rigid fragment, geometry-biased outward (O–P–O plane, twist scanned))
+Phosphates : 44 total  →  44 CaOx at P (every phosphate)  + 792 extra coat CaOx
+Strands    : 4 (11, 11, 11, 11 P each)
+
+This is NOT cut from Whewellite - xtl.pdb. Order emerges only after
+optional relaxation without COM distance restraints.
+
+Ca–Ca floor along strand: 3.70 Å (COM 3.84 allowed); non-neighbor packing: 6.0 Å.
+Ca–OP target (BV, 6-fold): 2.375 Å
+
+Per-phosphate Ca placement (Å / v.u.)
+  P  162: OP 2.359  2.370   P 2.765  BV(P)=0.69  mode=bidentate
+  P  814: OP 2.363  2.363   P 2.793  BV(P)=0.69  mode=bidentate
+  P  242: OP 2.364  2.367   P 2.766  BV(P)=0.68  mode=bidentate
+  P  285: OP 2.348  2.381   P 2.776  BV(P)=0.69  mode=bidentate
+  P  327: OP 2.365  2.369   P 2.758  BV(P)=0.68  mode=bidentate
+  P  361: OP 2.357  2.368   P 2.787  BV(P)=0.69  mode=bidentate
+  P  386: OP 2.354  2.362   P 2.791  BV(P)=0.70  mode=bidentate
+  P  407: OP 2.355  2.366   P 2.782  BV(P)=0.69  mode=bidentate
+  P    1: OP 2.373  2.375   P 2.759  BV(P)=0.67  mode=bidentate
+  P   23: OP 2.364  2.366   P 2.774  BV(P)=0.69  mode=bidentate
+  P   42: OP 2.359  2.369   P 2.772  BV(P)=0.69  mode=bidentate
+  P  163: OP 2.361  2.368   P 2.764  BV(P)=0.69  mode=bidentate
+  P  206: OP 2.363  2.363   P 2.793  BV(P)=0.69  mode=bidentate
+  P  243: OP 2.364  2.367   P 2.767  BV(P)=0.68  mode=bidentate
+  P  286: OP 2.348  2.381   P 2.776  BV(P)=0.69  mode=bidentate
+  P  328: OP 2.367  2.368   P 2.759  BV(P)=0.68  mode=bidentate
+  P  825: OP 2.357  2.368   P 2.787  BV(P)=0.69  mode=bidentate
+  P  840: OP 2.355  2.362   P 2.790  BV(P)=0.70  mode=bidentate
+  P  859: OP 2.355  2.366   P 2.782  BV(P)=0.69  mode=bidentate
+  P  877: OP 2.372  2.376   P 2.760  BV(P)=0.67  mode=bidentate
+  P  431: OP 2.364  2.367   P 2.775  BV(P)=0.69  mode=bidentate
+  P  447: OP 2.359  2.369   P 2.771  BV(P)=0.69  mode=bidentate
+  P  768: OP 2.108  2.296   P 2.595  BV(P)=0.68  mode=bidentate
+  P  735: OP 2.365  2.365   P 2.785  BV(P)=0.69  mode=bidentate
+  P  705: OP 2.364  2.372   P 2.789  BV(P)=0.68  mode=bidentate
+  P  681: OP 2.360  2.363   P 2.787  BV(P)=0.69  mode=bidentate
+  P  656: OP 2.355  2.368   P 2.775  BV(P)=0.69  mode=bidentate
+  P  623: OP 2.363  2.364   P 2.767  BV(P)=0.69  mode=bidentate
+  P  581: OP 2.358  2.368   P 2.788  BV(P)=0.69  mode=bidentate
+  P  539: OP 2.361  2.369   P 2.787  BV(P)=0.69  mode=bidentate
+  P  121: OP 2.352  2.372   P 2.771  BV(P)=0.69  mode=bidentate
+  P  102: OP 2.368  2.370   P 2.764  BV(P)=0.68  mode=bidentate
+  P   80: OP 2.355  2.371   P 2.786  BV(P)=0.69  mode=bidentate
+  P  769: OP 2.358  2.374   P 2.791  BV(P)=0.68  mode=bidentate
+  P  970: OP 2.364  2.365   P 2.785  BV(P)=0.69  mode=bidentate
+  P  956: OP 2.363  2.373   P 2.789  BV(P)=0.68  mode=bidentate
+  P  942: OP 2.361  2.362   P 2.788  BV(P)=0.69  mode=bidentate
+  P  927: OP 2.356  2.367   P 2.774  BV(P)=0.69  mode=bidentate
+  P  624: OP 2.364  2.364   P 2.767  BV(P)=0.69  mode=bidentate
+  P  582: OP 2.358  2.367   P 2.789  BV(P)=0.69  mode=bidentate
+  P  540: OP 2.416  2.675   P 2.998  BV(P)=0.69  mode=bidentate
+  P  504: OP 2.353  2.371   P 2.771  BV(P)=0.69  mode=bidentate
+  P  486: OP 2.367  2.371   P 2.765  BV(P)=0.68  mode=bidentate
+  P  914: OP 2.355  2.371   P 2.787  BV(P)=0.69  mode=bidentate
+
+Sequential Ca–Ca along strands (Å)  [DNA P–P is ~6.2–7.0; not forced]
+  Strand 1:
+    Ca@ 162 – Ca@ 814    7.995  HIGH
+    Ca@ 814 – Ca@ 242    7.143  OK
+    Ca@ 242 – Ca@ 285    7.430  OK
+    Ca@ 285 – Ca@ 327    9.468  HIGH
+    Ca@ 327 – Ca@ 361    8.406  HIGH
+    Ca@ 361 – Ca@ 386    6.960  OK
+    Ca@ 386 – Ca@ 407    8.545  HIGH
+    Ca@ 407 – Ca@   1    8.005  HIGH
+    Ca@   1 – Ca@  23    6.958  OK
+    Ca@  23 – Ca@  42    9.944  HIGH
+  Strand 2:
+    Ca@ 163 – Ca@ 206    7.994  HIGH
+    Ca@ 206 – Ca@ 243    7.146  OK
+    Ca@ 243 – Ca@ 286    7.431  OK
+    Ca@ 286 – Ca@ 328    9.465  HIGH
+    Ca@ 328 – Ca@ 825    8.406  HIGH
+    Ca@ 825 – Ca@ 840    6.962  OK
+    Ca@ 840 – Ca@ 859    8.543  HIGH
+    Ca@ 859 – Ca@ 877    8.010  HIGH
+    Ca@ 877 – Ca@ 431    6.957  OK
+    Ca@ 431 – Ca@ 447    9.942  HIGH
+  Strand 3:
+    Ca@ 768 – Ca@ 735    8.787  HIGH
+    Ca@ 735 – Ca@ 705    6.828  OK
+    Ca@ 705 – Ca@ 681    6.727  OK
+    Ca@ 681 – Ca@ 656    8.024  HIGH
+    Ca@ 656 – Ca@ 623    7.983  HIGH
+    Ca@ 623 – Ca@ 581    7.985  HIGH
+    Ca@ 581 – Ca@ 539    8.200  HIGH
+    Ca@ 539 – Ca@ 121    9.293  HIGH
+    Ca@ 121 – Ca@ 102    7.444  OK
+    Ca@ 102 – Ca@  80    8.259  HIGH
+  Strand 4:
+    Ca@ 769 – Ca@ 970    8.878  HIGH
+    Ca@ 970 – Ca@ 956    6.826  OK
+    Ca@ 956 – Ca@ 942    6.726  OK
+    Ca@ 942 – Ca@ 927    8.023  HIGH
+    Ca@ 927 – Ca@ 624    7.984  HIGH
+    Ca@ 624 – Ca@ 582    7.984  HIGH
+    Ca@ 582 – Ca@ 540    8.381  HIGH
+    Ca@ 540 – Ca@ 504    9.212  HIGH
+    Ca@ 504 – Ca@ 486    7.445  OK
+    Ca@ 486 – Ca@ 914    8.259  HIGH
+
+Ca–Ca sequential: n=40  min=6.726  median=8.000  max=9.944
+
+Median BV from phosphate O only: 0.69 v.u.
+(Full Ca2+ balance needs oxalate + water; target total = 2.0 v.u.)
+Coat: 44 P-bound CaOx + 792 extra CaOx + 1800 extra water O (not a 30 A shell).
+
+Sterics (rigid units)
+  Ca–Ca < 3.7 Å: 0
+  Inter-residue O–O < 2.0 Å: 11  (min 1.625)

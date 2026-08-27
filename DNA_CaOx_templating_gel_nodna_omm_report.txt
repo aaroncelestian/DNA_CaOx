@@ -1,11 +1,11 @@
 FIRE (rigid oxalate) + OpenMM minimization — CaOx / WHW only (DNA fixed)
 ========================================================================
-Input     : DNA_CaOx_templating_gel_nodna.pdb
+Input     : DNA_CaOx_templating_gel_nodna_omm.pdb
 FIRE PDB  : DNA_CaOx_templating_gel_nodna_fire.pdb
 OpenMM PDB: DNA_CaOx_templating_gel_nodna_omm.pdb
 WHW atoms : 2088 -> 2088 (same-element merge 0.0 Å)
-Groups    : 216 rigid oxalate, 220 Ca, 564 water O
-FIRE      : 180 steps, freeze-beyond=0.0 Å, frozen bodies=0
+Groups    : 182 rigid oxalate, 220 Ca, 700 water O
+FIRE      : 0 steps, freeze-beyond=0.0 Å, frozen bodies=0
 
 Restraints (same as DLS, oxalate rigid instead of intra LS):
   O···O one-sided target 2.40 Å  (weight 80.0)
@@ -15,18 +15,23 @@ Restraints (same as DLS, oxalate rigid instead of intra LS):
   DNA coordinates unchanged; WHW–DNA exclusion 2.20 Å
 
 Inter-group O···O < 2.00 Å:
-  start : n=198  min=0.22351286316451707
-  FIRE  : n=4  min=1.8019696545618182
-  final : n=2  min=1.952718664153007
+  start : n=2  min=1.5857584935922626
+  FIRE  : n=2  min=1.5857584935922626
+  final : n=0  min=None
 
 OpenMM LocalEnergyMinimizer:
-  platform : CPU
-  energy   : 2.1769e+03 -> 1.7508e+03 kJ/mol
+  platform : md-only
+  energy   : 0.0000e+00 -> 0.0000e+00 kJ/mol
   DNA max shift : 0.0000 Å (should be ~0)
-  oxalate RMSD vs rigid : 0.0211 Å
-  O-O after Cartesian min : n=2  min=1.9551417488098823
-  O-O after re-rigidify   : n=7  min=1.8305655650037482
+  oxalate RMSD vs rigid : 0.0000 Å
+  O-O after Cartesian min : n=0  min=None
+  O-O after re-rigidify   : n=0  min=None
   intra-oxalate k = 400.0 (keeps C2O4 rigid during Cartesian min)
-  FIRE polish O-O        : n=2  min=1.952718664153007
+NVT Langevin MD:
+  length   : 0.050 ns (50000 steps)
+  frames   : 401
+  T        : 350 K
+  pos anchor scale : 0.040
+
 
 Energy plot: figures/crystallinity/DNA_CaOx_templating_gel_nodna_fire_omm_energy.png
