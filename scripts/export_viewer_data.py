@@ -73,6 +73,18 @@ GEOMETRIES = {
         "oxalate": True,
         "traj": "trajectories/DNA_CaOx_templating_gel_thick_fire.trj.json",
     },
+    "templating_gel_15shell": {
+        "pdb": ROOT / "DNA_CaOx_templating_gel_15shell_omm.pdb",
+        "csv": ROOT
+        / "figures/crystallinity/DNA_CaOx_templating_gel_15shell_omm_ca_metrics.csv",
+        "seeds": ROOT / "DNA_CaOx_templating_gel_15shell_seeds.pdb",
+        "title": "Templating gel 15-row coat + MD",
+        "cut": "P + 14 disordered coat shells (~70 Å); honest FIRE + NVT MD trajectory",
+        "seedRadius": 72.0,
+        "cutKind": "spheres",
+        "oxalate": True,
+        "traj": "trajectories/DNA_CaOx_templating_gel_15shell_fire.trj.json",
+    },
     "templating_nodna": {
         "pdb": ROOT / "DNA_CaOx_templating_gel_nodna_omm.pdb",
         "csv": ROOT

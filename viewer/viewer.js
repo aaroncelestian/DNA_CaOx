@@ -1285,6 +1285,7 @@ function loadGeometry(name) {
   const geomIds = {
     templating_gel: "geom-templating",
     templating_gel_thick: "geom-templating-thick",
+    templating_gel_15shell: "geom-templating-15shell",
     templating_nodna: "geom-nodna",
     shell_lattice: "geom-shell-lattice",
     slab: "geom-slab",
@@ -1297,6 +1298,7 @@ function loadGeometry(name) {
   if (
     name === "templating_gel" ||
     name === "templating_gel_thick" ||
+    name === "templating_gel_15shell" ||
     name === "templating_nodna"
   ) {
     setCoatView();
@@ -1755,6 +1757,9 @@ function ui() {
   $("geom-templating").addEventListener("click", () => loadGeometry("templating_gel"));
   $("geom-templating-thick").addEventListener("click", () =>
     loadGeometry("templating_gel_thick")
+  );
+  $("geom-templating-15shell").addEventListener("click", () =>
+    loadGeometry("templating_gel_15shell")
   );
   $("geom-nodna").addEventListener("click", () => loadGeometry("templating_nodna"));
   $("geom-shell-lattice").addEventListener("click", () => loadGeometry("shell_lattice"));

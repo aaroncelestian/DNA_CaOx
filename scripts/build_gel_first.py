@@ -241,6 +241,34 @@ COAT_LAYERS_THICK = COAT_LAYERS_STANDARD + [
     {"n": 2, "r_lo": 13.5, "r_hi": 18.5, "try_edge": False, "outward_bias": 0.72},
     {"n": 2, "r_lo": 17.5, "r_hi": 22.5, "try_edge": False, "outward_bias": 0.78},
 ]
+# 15-row coat: P-bound + 14 disordered shells (~70 Å outer reach).
+N_COAT_15SHELL = 14
+
+
+def coat_layers_n(n_coat: int) -> list[dict]:
+    """Build *n_coat* disordered coat layers (after the P-bound row)."""
+    if n_coat <= 0:
+        return []
+    layers = list(COAT_LAYERS_THICK)
+    last_hi = float(layers[-1]["r_hi"]) if layers else 14.0
+    for k in range(len(layers), n_coat):
+        r_lo = max(4.0, last_hi - 1.0)
+        r_hi = last_hi + 4.5
+        bias = min(0.88, 0.65 + 0.02 * k)
+        layers.append(
+            {
+                "n": 2,
+                "r_lo": r_lo,
+                "r_hi": r_hi,
+                "try_edge": k < 2,
+                "outward_bias": bias,
+            }
+        )
+        last_hi = r_hi
+    return layers[:n_coat]
+
+
+COAT_LAYERS_15SHELL = coat_layers_n(N_COAT_15SHELL)
 
 
 def apply_coat_layers(sites, placements, frag, dna_xyz, dna_o, layers):
@@ -566,6 +594,12 @@ def main():
         "writes DNA_CaOx_templating_gel_thick*.pdb — does not touch templating_gel.",
     )
     ap.add_argument(
+        "--templating-15shell",
+        action="store_true",
+        help="Fifteen-row templating gel (P + 14 coat shells to ~70 Å); "
+        "writes DNA_CaOx_templating_gel_15shell*.pdb — separate from other gels.",
+    )
+    ap.add_argument(
         "--templating",
         action="store_true",
         help="Three-row templating gel for phosphate-templating test: strand-aware "
@@ -595,7 +629,9 @@ def main():
             "gel_geom" if args.orient == "geometry" else "gel_first"
         )
     )
-    if args.templating_thick:
+    if args.templating_15shell:
+        tag = "templating_gel_15shell"
+    elif args.templating_thick:
         tag = "templating_gel_thick"
     elif args.templating:
         tag = "templating_gel_altP" if args.alt_p else "templating_gel"
@@ -691,19 +727,26 @@ def main():
             kept.append(a)
         placements[idx] = kept
 
-    templating = args.templating or args.templating_thick
-    coat_layers = (
-        COAT_LAYERS_THICK
-        if args.templating_thick
-        else COAT_LAYERS_STANDARD if templating else []
-    )
+    templating = args.templating or args.templating_thick or args.templating_15shell
+    if args.templating_15shell:
+        coat_layers = COAT_LAYERS_15SHELL
+    elif args.templating_thick:
+        coat_layers = COAT_LAYERS_THICK
+    elif templating:
+        coat_layers = COAT_LAYERS_STANDARD
+    else:
+        coat_layers = []
     default_extra = sum(layer["n"] for layer in coat_layers)
     extra_per_p = (
         args.extra_per_p
         if args.extra_per_p is not None
         else default_extra
     )
-    default_waters = 800 if args.templating_thick else (400 if templating else 0)
+    default_waters = (
+        2800
+        if args.templating_15shell
+        else (800 if args.templating_thick else (400 if templating else 0))
+    )
     extra_waters_n = (
         args.extra_waters
         if args.extra_waters is not None

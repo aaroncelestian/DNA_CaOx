@@ -663,6 +663,7 @@ def import_openmm():
             "CustomExternalForce": CustomExternalForce,
             "CustomNonbondedForce": CustomNonbondedForce,
             "LocalEnergyMinimizer": LocalEnergyMinimizer,
+            "LangevinMiddleIntegrator": openmm.LangevinMiddleIntegrator,
             "Platform": Platform,
             "System": System,
             "VerletIntegrator": VerletIntegrator,
@@ -670,6 +671,7 @@ def import_openmm():
             "kilojoule_per_mole": kilojoule_per_mole,
             "nanometer": nanometer,
             "picosecond": picosecond,
+            "kelvin": openmm.unit.kelvin,
         }
     except ImportError as exc:
         return None, str(exc)
@@ -871,6 +873,206 @@ def run_openmm(whw, dna_xyz, tbl, bodies, max_iter: int, platform_name: str | No
     }
 
 
+def run_openmm_nvt(
+    whw,
+    dna_xyz,
+    tbl,
+    ca_idx,
+    *,
+    ns: float = 0.1,
+    timestep_ps: float = 0.001,
+    temperature_k: float = 300.0,
+    friction: float = 1.0,
+    traj_interval: int = 500,
+    traj_out: list | None = None,
+    step_offset: int = 0,
+    platform_name: str | None = None,
+    freeze_resseq_le: int = 0,
+    seed_epitax: bool = False,
+    md_pos_scale: float = 0.04,
+    max_iter: int = 50,
+):
+    """NVT Langevin MD on the same OpenMM model (after FIRE/min). Weak anchors."""
+    loaded = import_openmm()
+    if not isinstance(loaded, dict):
+        err = loaded[1] if isinstance(loaded, tuple) else "unknown import error"
+        raise RuntimeError(f"OpenMM not available: {err}")
+
+    omm = loaded
+    xyz = np.array([a["xyz"] for a in whw], float)
+    n = len(whw)
+    n_dna = len(dna_xyz)
+    tbl = dict(tbl)
+    tbl["xyz0"] = xyz.copy()
+
+    System = omm["System"]
+    CustomBondForce = omm["CustomBondForce"]
+    CustomExternalForce = omm["CustomExternalForce"]
+    CustomNonbondedForce = omm["CustomNonbondedForce"]
+    nanometer = omm["nanometer"]
+    dalton = omm["dalton"]
+    kilojoule_per_mole = omm["kilojoule_per_mole"]
+    picosecond = omm["picosecond"]
+    kelvin = omm["kelvin"]
+
+    system = System()
+    k_dna = 1.0e7
+    for a in whw:
+        el = el_of(a)
+        if freeze_resseq_le > 0 and int(a.get("resseq", 9999)) <= freeze_resseq_le:
+            mass = 0.0
+        elif seed_epitax and is_seed_atom(a):
+            mass = 0.0
+        else:
+            mass = 40.0 if el == "CA" else (12.0 if el == "C" else 16.0)
+        system.addParticle(mass * dalton)
+    for _ in range(n_dna):
+        system.addParticle(0.0 * dalton)
+
+    bonds = CustomBondForce("k*(10*r - d0)^2")
+    bonds.addPerBondParameter("k")
+    bonds.addPerBondParameter("d0")
+    bonds.setUsesPeriodicBoundaryConditions(False)
+    ii, jj, d0 = tbl["intra"]
+    for i, j, d in zip(ii, jj, d0):
+        bonds.addBond(int(i), int(j), [OMM_W_INTRA, float(d)])
+    ci, cj, cd = tbl["cao"]
+    for i, j, d in zip(ci, cj, cd):
+        bonds.addBond(int(i), int(j), [W_CAO, float(d)])
+    mi, mj, mt = tbl["com"][0], tbl["com"][1], tbl["com"][2]
+    mw = tbl["com"][3] if len(tbl["com"]) > 3 else np.full(len(mi), W_COM, float)
+    for i, j, d, w in zip(mi, mj, mt, mw):
+        bonds.addBond(int(i), int(j), [float(w), float(d)])
+    ei, ej, et, ew = tbl.get("epitax", (np.zeros(0, int),) * 4)
+    for i, j, d, w in zip(ei, ej, et, ew):
+        bonds.addBond(int(i), int(j), [float(w), float(d)])
+    if bonds.getNumBonds():
+        system.addForce(bonds)
+
+    pos_force = CustomExternalForce("k*((x-x0)^2+(y-y0)^2+(z-z0)^2)")
+    pos_force.addPerParticleParameter("k")
+    pos_force.addPerParticleParameter("x0")
+    pos_force.addPerParticleParameter("y0")
+    pos_force.addPerParticleParameter("z0")
+    k_pos = 100.0 * W_POS * float(md_pos_scale)
+    xyz0 = tbl["xyz0"]
+    for i in range(n):
+        x0, y0, z0 = xyz0[i] * NM
+        k_use = (
+            k_dna
+            if (
+                (freeze_resseq_le > 0 and int(whw[i].get("resseq", 9999)) <= freeze_resseq_le)
+                or (seed_epitax and is_seed_atom(whw[i]))
+            )
+            else k_pos
+        )
+        pos_force.addParticle(i, [k_use, float(x0), float(y0), float(z0)])
+    for i, p in enumerate(dna_xyz):
+        x0, y0, z0 = np.asarray(p, float) * NM
+        pos_force.addParticle(n + i, [k_dna, float(x0), float(y0), float(z0)])
+    system.addForce(pos_force)
+
+    nb = CustomNonbondedForce(
+        "w_oo*(oo_min-10*r)^2*step(oo_min-10*r)*step(is_o1*is_o2-0.5)*step(abs(gid1-gid2)-0.5)"
+        "+w_ca*(ca_min-10*r)^2*step(ca_min-10*r)*step(is_ca1*is_ca2-0.5)"
+        "+w_dna*(dna_min-10*r)^2*step(dna_min-10*r)*(is_dna1*(1-is_dna2)+is_dna2*(1-is_dna1))"
+    )
+    for name, val in (
+        ("w_oo", W_OO * 1.5),
+        ("oo_min", OO_TARGET),
+        ("w_ca", W_CA),
+        ("ca_min", CA_MIN),
+        ("w_dna", W_DNA),
+        ("dna_min", DNA_HEAVY),
+    ):
+        nb.addGlobalParameter(name, val)
+    for name in ("is_o", "is_ca", "is_dna", "gid"):
+        nb.addPerParticleParameter(name)
+    gid = tbl["gid"]
+    for i, a in enumerate(whw):
+        nb.addParticle(
+            [
+                1.0 if is_oxygen(a) else 0.0,
+                1.0 if is_ca(a) else 0.0,
+                0.0,
+                float(gid[i]),
+            ]
+        )
+    for i in range(n_dna):
+        nb.addParticle([0.0, 0.0, 1.0, -1.0])
+    nb.setNonbondedMethod(CustomNonbondedForce.CutoffNonPeriodic)
+    nb.setCutoffDistance(0.42 * nanometer)
+    system.addForce(nb)
+
+    oo_a, oo_b = oo_pair_list(xyz, tbl["o_idx"], tbl["gid"], OO_TARGET + 0.15)
+    if len(oo_a):
+        oo_bforce = CustomBondForce("w*max(dmin-10*r,0)^2")
+        oo_bforce.addPerBondParameter("w")
+        oo_bforce.addPerBondParameter("dmin")
+        oo_bforce.setUsesPeriodicBoundaryConditions(False)
+        for i, j in zip(oo_a, oo_b):
+            oo_bforce.addBond(int(i), int(j), [W_OO * 1.5, OO_TARGET])
+        system.addForce(oo_bforce)
+
+    xyz_all = np.vstack([xyz, dna_xyz]) if n_dna else xyz.copy()
+    positions = (xyz_all * NM).tolist()
+
+    platform = pick_platform(omm, platform_name)
+    integrator = omm["LangevinMiddleIntegrator"](
+        temperature_k * kelvin,
+        friction / picosecond,
+        timestep_ps * picosecond,
+    )
+    context = omm["Context"](system, integrator, platform)
+    context.setPositions(positions)
+    if max_iter > 0:
+        omm["LocalEnergyMinimizer"].minimize(
+            context,
+            25 * kilojoule_per_mole / nanometer,
+            max_iter,
+        )
+    context.setVelocitiesToTemperature(temperature_k * kelvin)
+
+    n_steps = max(0, int(round(ns * 1000.0 / timestep_ps)))
+    interval = max(1, int(traj_interval))
+    frames = []
+    print(
+        f"NVT MD: {ns:.3f} ns ({n_steps} steps @ {timestep_ps} ps), "
+        f"T={temperature_k} K, pos anchor ×{md_pos_scale:.3f}",
+        flush=True,
+    )
+    for step in range(1, n_steps + 1):
+        integrator.step(1)
+        if traj_out is not None and (step == 1 or step % interval == 0 or step == n_steps):
+            state = context.getState(getPositions=True, getEnergy=True)
+            pos_nm = state.getPositions(asNumpy=True)
+            xyz_whw = np.array(pos_nm.value_in_unit(nanometer), float)[:n] * 10.0
+            e = state.getPotentialEnergy().value_in_unit(kilojoule_per_mole)
+            frame = make_traj_frame(
+                whw,
+                xyz_whw,
+                ca_idx,
+                dna_xyz,
+                step_offset + step,
+                e,
+                "md",
+            )
+            traj_out.append(frame)
+            frames.append(frame)
+        if step % max(interval * 10, 1000) == 0 or step == n_steps:
+            state = context.getState(getEnergy=True)
+            e = state.getPotentialEnergy().value_in_unit(kilojoule_per_mole)
+            print(f"  MD step {step}/{n_steps}  E={e:.3e} kJ/mol", flush=True)
+
+    state = context.getState(getPositions=True)
+    pos_nm = state.getPositions(asNumpy=True)
+    xyz_whw = np.array(pos_nm.value_in_unit(nanometer), float)[:n] * 10.0
+    for i, a in enumerate(whw):
+        a["xyz"] = xyz_whw[i]
+    del context
+    return {"n_steps": n_steps, "frames": frames}
+
+
 def oxalate_rmsd(xyz, bodies) -> float:
     acc = []
     for b in bodies:
@@ -1043,6 +1245,30 @@ def main():
         "avoids a large coordinate jump at the FIRE/OpenMM handoff).",
     )
     ap.add_argument(
+        "--md-ns",
+        type=float,
+        default=0.0,
+        help="NVT Langevin MD after OpenMM (ns). 0 = skip. Implies --traj-include-openmm.",
+    )
+    ap.add_argument(
+        "--md-traj-interval",
+        type=int,
+        default=500,
+        help="Record MD trajectory every N integration steps.",
+    )
+    ap.add_argument(
+        "--md-pos-scale",
+        type=float,
+        default=0.04,
+        help="Positional anchor scale during MD (fraction of minimization k).",
+    )
+    ap.add_argument(
+        "--md-temperature",
+        type=float,
+        default=300.0,
+        help="NVT temperature (K).",
+    )
+    ap.add_argument(
         "--w-gel-com",
         type=float,
         default=W_GEL_COM,
@@ -1061,6 +1287,8 @@ def main():
         help="Beyond this d(gel) (Å), add shell–shell COM pairs in the outer annulus.",
     )
     args = ap.parse_args()
+    if args.md_ns > 0:
+        args.traj_include_openmm = True
 
     in_pdb = args.pdb
     stem = output_stem(in_pdb)
@@ -1244,6 +1472,20 @@ def main():
                 fire_steps = fire["steps_run"] + polish["steps_run"]
             else:
                 fire_steps = fire["steps_run"]
+                if args.traj_include_openmm and traj_path:
+                    traj_frames = list(traj_fire_frames)
+                    xyz_omm_pre = np.array([a["xyz"] for a in whw], float)
+                    traj_frames.append(
+                        make_traj_frame(
+                            whw,
+                            xyz_omm_pre,
+                            fire["ca_idx"],
+                            dna_xyz,
+                            int(fire["steps_run"]) + 1,
+                            omm_stats.get("e1"),
+                            "openmm",
+                        )
+                    )
             xyz_omm = np.array([a["xyz"] for a in whw], float)
             if traj_path and traj_frames and args.traj_include_openmm:
                 traj_frames.append(
@@ -1268,6 +1510,37 @@ def main():
                 ],
             )
             print(f"Wrote {out_omm.name}", flush=True)
+            if args.md_ns > 0:
+                if traj_path and not traj_frames:
+                    traj_frames = list(traj_fire_frames)
+                md_step0 = int(fire["steps_run"]) + int(args.polish or 0) + 2
+                md_stats = run_openmm_nvt(
+                    whw,
+                    dna_xyz,
+                    fire["tbl"],
+                    fire["ca_idx"],
+                    ns=args.md_ns,
+                    traj_interval=args.md_traj_interval,
+                    traj_out=traj_frames if traj_path else None,
+                    step_offset=md_step0,
+                    platform_name=args.platform,
+                    freeze_resseq_le=args.freeze_resseq_le,
+                    seed_epitax=args.seed_epitax,
+                    md_pos_scale=args.md_pos_scale,
+                    temperature_k=args.md_temperature,
+                )
+                omm_stats["md_steps"] = md_stats["n_steps"]
+                omm_stats["md_frames"] = len(md_stats["frames"])
+                write_pdb(
+                    out_omm,
+                    dna + other + whw,
+                    [
+                        "HEADER    OPENMM+MD WHEWELLITE AFTER RIGID-OXALATE FIRE\n",
+                        "TITLE     FIRE -> OPENMM -> NVT MD; DNA FIXED\n",
+                        f"REMARK   1 MD {args.md_ns:.3f} ns, {md_stats['n_steps']} steps\n",
+                    ],
+                )
+                print(f"Updated {out_omm.name} after MD", flush=True)
         except Exception as exc:
             omm_err = str(exc)
             print(f"OpenMM failed: {omm_err}", flush=True)
@@ -1342,6 +1615,15 @@ def main():
             lines.append(
                 f"  FIRE polish O-O        : n={omm_stats['polish_oo']}  min={omm_stats['polish_min']}"
             )
+        if "md_steps" in omm_stats:
+            lines += [
+                "NVT Langevin MD:",
+                f"  length   : {args.md_ns:.3f} ns ({omm_stats['md_steps']} steps)",
+                f"  frames   : {omm_stats.get('md_frames', 0)}",
+                f"  T        : {args.md_temperature:.0f} K",
+                f"  pos anchor scale : {args.md_pos_scale:.3f}",
+                "",
+            ]
         lines += ["", ]
     elif omm_err:
         lines += ["OpenMM:", f"  FAILED: {omm_err}", ""]
