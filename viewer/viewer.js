@@ -1350,7 +1350,7 @@ function collectSession() {
     geometry: MODEL.geometry || DEFAULT_GEOM,
     checks,
     values,
-    style: style ? style.value : "spheres",
+    style: style ? style.value : "cloud",
     color: color ? color.value : "distance",
     g16ChkEdited: $("g16-chk")?.dataset.userEdited === "1",
     trajFrame: trajFrame || 0,
@@ -1509,33 +1509,66 @@ function loadGeometry(name, opts = {}) {
   buildRadialGuides();
   buildHotspotMarkers();
   rebuildMineral();
-  const geomIds = {
-    templating_gel: "geom-templating",
-    templating_gel_thick: "geom-templating-thick",
-    templating_gel_10shell: "geom-templating-10shell",
-    templating_gel_15shell: "geom-templating-15shell",
-    templating_nodna: "geom-nodna",
-  };
-  Object.entries(geomIds).forEach(([g, id]) => {
-    const el = $(id);
-    if (el) el.classList.toggle("active", name === g);
-  });
+  syncGeomSelect(name);
   syncLabels();
   if (opts.preserveUi) {
     applyUi();
-  } else if (
-    name === "templating_gel" ||
-    name === "templating_gel_thick" ||
-    name === "templating_gel_10shell" ||
-    name === "templating_gel_15shell" ||
-    name === "templating_nodna"
-  ) {
+  } else if (MODELS[name]) {
     setCoatView();
   } else {
     applyUi();
     setView("side");
   }
   loadTrajectory(MODEL.traj);
+}
+
+function modelOptionLabel(key, model) {
+  return model?.title || key;
+}
+
+const MODEL_ORDER = [
+  "sphere",
+  "slab",
+  "allp",
+  "local10",
+  "local",
+  "altp",
+  "gel",
+  "shell15",
+  "gel_altp_geom",
+  "shell_lattice",
+  "shell_lattice_seeded",
+  "templating_gel",
+  "templating_gel_thick",
+  "templating_gel_10shell",
+  "templating_gel_15shell",
+  "templating_nodna",
+];
+
+function populateGeomSelect() {
+  const sel = $("geom-select");
+  if (!sel) return;
+  const keys = [
+    ...MODEL_ORDER.filter((k) => MODELS[k]),
+    ...Object.keys(MODELS)
+      .filter((k) => !MODEL_ORDER.includes(k))
+      .sort((a, b) =>
+        String(MODELS[a]?.title || a).localeCompare(String(MODELS[b]?.title || b))
+      ),
+  ];
+  sel.innerHTML = keys
+    .map((key) => {
+      const label = modelOptionLabel(key, MODELS[key]);
+      return `<option value="${key}">${label}</option>`;
+    })
+    .join("");
+  syncGeomSelect(MODEL.geometry || DEFAULT_GEOM);
+}
+
+function syncGeomSelect(name) {
+  const sel = $("geom-select");
+  if (!sel) return;
+  if (name && MODELS[name]) sel.value = name;
 }
 
 async function loadTrajectory(url) {
@@ -2684,8 +2717,8 @@ function setCoatView() {
   if ($("radial-guides")) $("radial-guides").checked = false;
   if ($("oxalate")) $("oxalate").checked = true;
   if ($("water")) $("water").checked = true;
-  const sph = document.querySelector('input[name="style"][value="spheres"]');
-  if (sph) sph.checked = true;
+  const cloud = document.querySelector('input[name="style"][value="cloud"]');
+  if (cloud) cloud.checked = true;
   const dist = document.querySelector('input[name="color"][value="distance"]');
   if (dist) dist.checked = true;
   applyUi();
@@ -2727,17 +2760,13 @@ function ui() {
   $("view-seed").addEventListener("click", () => setView("seed"));
   const vn = $("view-nucleation");
   if (vn) vn.addEventListener("click", setNucleationView);
-  $("geom-templating").addEventListener("click", () => loadGeometry("templating_gel"));
-  $("geom-templating-thick").addEventListener("click", () =>
-    loadGeometry("templating_gel_thick")
-  );
-  $("geom-templating-10shell").addEventListener("click", () =>
-    loadGeometry("templating_gel_10shell")
-  );
-  $("geom-templating-15shell").addEventListener("click", () =>
-    loadGeometry("templating_gel_15shell")
-  );
-  $("geom-nodna").addEventListener("click", () => loadGeometry("templating_nodna"));
+  populateGeomSelect();
+  const geomSelect = $("geom-select");
+  if (geomSelect) {
+    geomSelect.addEventListener("change", () => {
+      if (geomSelect.value) loadGeometry(geomSelect.value);
+    });
+  }
   $("traj-step").addEventListener("input", () => {
     stopTraj();
     applyTrajFrame(Number($("traj-step").value));

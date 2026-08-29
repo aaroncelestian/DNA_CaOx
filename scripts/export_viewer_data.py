@@ -47,8 +47,125 @@ SEED_PDB = ROOT / "DNA_CaOx_growth.pdb"
 OUT = ROOT / "viewer" / "model-data.js"
 DEFAULT_GEOM = "templating_gel"
 
-# Viewer CUT options (export only these into model-data.js).
+# Viewer model options (export these into model-data.js).
+# Sphere / slab / allp / local / altp = whewellite growth cuts.
+# Gel* = phosphate-gel builds. Templating_* = current multi-row gel + MD series.
 GEOMETRIES = {
+    "sphere": {
+        "pdb": ROOT / "DNA_CaOx_growth_whewellite30A_relaxed.pdb",
+        "csv": ROOT
+        / "figures/crystallinity/DNA_CaOx_growth_whewellite30A_dls_ca_metrics.csv",
+        "title": "Spherical 30 Å (4 seed balloons)",
+        "cut": "union of 30 Å spheres around the four COM seed Ca",
+        "seedRadius": 30.0,
+        "cutKind": "spheres",
+    },
+    "slab": {
+        "pdb": ROOT / "DNA_CaOx_growth_whewellite30A_dls.pdb",
+        "csv": ROOT
+        / "figures/crystallinity/DNA_CaOx_growth_whewellite30A_slab_dls_ca_metrics.csv",
+        "title": "Cylinder / slab (DNA-length coating)",
+        "cut": "cylinder along DNA, 30 Å from the duplex envelope",
+        "seedRadius": 30.0,
+        "cutKind": "cylinder",
+    },
+    "allp": {
+        "pdb": ROOT / "DNA_CaOx_growth_whewellite30A_allP.pdb",
+        "csv": ROOT
+        / "figures/crystallinity/DNA_CaOx_growth_whewellite30A_allP_ca_metrics.csv",
+        "seeds": ROOT / "DNA_CaOx_growth_allP_seeds.pdb",
+        "title": "All phosphates (22 seeds, 30 Å)",
+        "cut": "one COM seed at every P on both strands; union of 30 Å spheres",
+        "seedRadius": 30.0,
+        "cutKind": "spheres",
+    },
+    "local": {
+        "pdb": ROOT / "DNA_CaOx_growth_whewellite20A_allP_dls.pdb",
+        "csv": ROOT
+        / "figures/crystallinity/DNA_CaOx_growth_whewellite20A_allP_dls_ca_metrics.csv",
+        "seeds": ROOT / "DNA_CaOx_growth_allP_seeds.pdb",
+        "title": "Local wrap (22 seeds, 20 Å, DLS)",
+        "cut": "COM at every P; 20 Å spheres (~2 c-steps), then oxalate/Ca DLS",
+        "seedRadius": 20.0,
+        "cutKind": "spheres",
+    },
+    "local10": {
+        "pdb": ROOT / "DNA_CaOx_growth_whewellite10A_allP_dls.pdb",
+        "csv": ROOT
+        / "figures/crystallinity/DNA_CaOx_growth_whewellite10A_allP_dls_ca_metrics.csv",
+        "seeds": ROOT / "DNA_CaOx_growth_allP_seeds.pdb",
+        "title": "Local wrap (22 seeds, 10 Å, DLS)",
+        "cut": "COM at every P; 10 Å spheres (~1 c-step), then oxalate/Ca DLS",
+        "seedRadius": 10.0,
+        "cutKind": "spheres",
+    },
+    "altp": {
+        "pdb": ROOT / "DNA_CaOx_growth_whewellite30A_altP_omm.pdb",
+        "csv": ROOT
+        / "figures/crystallinity/DNA_CaOx_growth_whewellite30A_altP_omm_ca_metrics.csv",
+        "seeds": ROOT / "DNA_CaOx_growth_altP_seeds.pdb",
+        "title": "Every other P (12 seeds, 30 Å, FIRE/OMM)",
+        "cut": "COM at every other P on both strands; 30 Å spheres, then rigid-oxalate FIRE + OpenMM",
+        "seedRadius": 30.0,
+        "cutKind": "spheres",
+        "oxalate": True,
+    },
+    "gel": {
+        "pdb": ROOT / "DNA_CaOx_gel_first_omm.pdb",
+        "csv": ROOT / "figures/crystallinity/DNA_CaOx_gel_first_omm_ca_metrics.csv",
+        "seeds": ROOT / "DNA_CaOx_gel_first_seeds.pdb",
+        "title": "Gel-first (44 P, FIRE/OMM)",
+        "cut": "BV OP chelation at every phosphate; random oxalate orientations; FIRE+OpenMM, no COM Ca–Ca targets",
+        "seedRadius": 12.0,
+        "cutKind": "spheres",
+        "oxalate": True,
+    },
+    "shell15": {
+        "pdb": ROOT / "DNA_CaOx_gel_first_shell15A_omm.pdb",
+        "csv": ROOT
+        / "figures/crystallinity/DNA_CaOx_gel_first_shell15A_omm_ca_metrics.csv",
+        "seeds": ROOT / "DNA_CaOx_gel_first_seeds.pdb",
+        "title": "Gel + 15 Å shell (FIRE/OMM)",
+        "cut": "Frozen gel (44 P) + random CaOx/water 2.25–15 Å from gel; shell relaxed, no COM targets",
+        "seedRadius": 15.0,
+        "cutKind": "spheres",
+        "oxalate": True,
+    },
+    "gel_altp_geom": {
+        "pdb": ROOT / "DNA_CaOx_gel_altP_geom_omm.pdb",
+        "csv": ROOT / "figures/crystallinity/DNA_CaOx_gel_altP_geom_omm_ca_metrics.csv",
+        "seeds": ROOT / "DNA_CaOx_gel_altP_geom_seeds.pdb",
+        "title": "Gel alt-P + geometry (22 P, honest FIRE)",
+        "cut": "Every other P; BV Ca; geometry-oriented oxalate; FIRE+OpenMM, no COM targets",
+        "seedRadius": 12.0,
+        "cutKind": "spheres",
+        "oxalate": True,
+        "traj": "trajectories/DNA_CaOx_gel_altP_geom_fire.trj.json",
+    },
+    "shell_lattice": {
+        "pdb": ROOT / "DNA_CaOx_gel_altP_geom_shell_lattice_omm.pdb",
+        "csv": ROOT
+        / "figures/crystallinity/DNA_CaOx_gel_altP_geom_shell_lattice_omm_ca_metrics.csv",
+        "seeds": ROOT / "DNA_CaOx_gel_altP_geom_seeds.pdb",
+        "title": "Gel + saturated CaOx shell",
+        "cut": "Frozen gel; saturated CaOx shell to 30 Å (gel coat → intermediate → pre-crystal → bulk)",
+        "seedRadius": 28.0,
+        "cutKind": "spheres",
+        "oxalate": True,
+        "traj": "trajectories/DNA_CaOx_gel_altP_geom_shell_lattice_fire.trj.json",
+    },
+    "shell_lattice_seeded": {
+        "pdb": ROOT / "DNA_CaOx_gel_altP_geom_shell_lattice_seeded_omm.pdb",
+        "csv": ROOT
+        / "figures/crystallinity/DNA_CaOx_gel_altP_geom_shell_lattice_seeded_omm_ca_metrics.csv",
+        "seeds": ROOT / "DNA_CaOx_gel_altP_geom_seeds.pdb",
+        "title": "Gel + lattice shell + whewellite seed",
+        "cut": "Frozen gel; lattice shell 6–28 Å; authentic whewellite patch at 22–28 Å",
+        "seedRadius": 28.0,
+        "cutKind": "spheres",
+        "oxalate": True,
+        "traj": "trajectories/DNA_CaOx_gel_altP_geom_shell_lattice_seeded_fire.trj.json",
+    },
     "templating_gel": {
         "pdb": ROOT / "DNA_CaOx_templating_gel_omm.pdb",
         "csv": ROOT
@@ -692,7 +809,7 @@ def build_model(geom: str) -> dict:
     nuc = [a for a in atoms if a["resname"] == "NUC"]
     ca_pts, _ = load_whw_ca(pdb)
     if nuc:
-    origin, axis, zmin, zmax, r_dna = dna_slab_frame(nuc, pad=0.5)
+        origin, axis, zmin, zmax, r_dna = dna_slab_frame(nuc, pad=0.5)
     else:
         origin = ca_pts.mean(axis=0) if len(ca_pts) else np.zeros(3)
         axis = np.array([0.0, 1.0, 0.0])
@@ -702,7 +819,7 @@ def build_model(geom: str) -> dict:
     else:
         seed_path = spec.get("seeds", SEED_PDB)
         try:
-    seeds = load_growth_seed_positions(seed_path)
+            seeds = load_growth_seed_positions(seed_path)
         except SystemExit:
             seeds = {i + 1: ca_pts[i] for i in range(min(4, len(ca_pts)))}
     basis_seeds = seeds if seeds else {
@@ -738,7 +855,7 @@ def build_model(geom: str) -> dict:
         outward = np.ones(len(ca_pts), bool)
         r_phosphate = 0.0
     else:
-    outward = r_axis >= (r_phosphate - 0.35)
+        outward = r_axis >= (r_phosphate - 0.35)
     hotspot = hotspot & outward
     radial = np.hypot(hx_ca[:, 0], hx_ca[:, 2])
     phi = np.degrees(np.arctan2(hx_ca[:, 2], hx_ca[:, 0]))

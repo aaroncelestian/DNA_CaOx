@@ -33,6 +33,17 @@ EXPORTS_DIR = ROOT / "viewer" / "gaussview_exports"
 WORK_ROOT = Path("/tmp/dna_caox_g16")
 LOG_TAIL_BYTES = 12000
 GEOM_PDBS = {
+    "sphere": ROOT / "DNA_CaOx_growth_whewellite30A_relaxed.pdb",
+    "slab": ROOT / "DNA_CaOx_growth_whewellite30A_dls.pdb",
+    "allp": ROOT / "DNA_CaOx_growth_whewellite30A_allP.pdb",
+    "local": ROOT / "DNA_CaOx_growth_whewellite20A_allP_dls.pdb",
+    "local10": ROOT / "DNA_CaOx_growth_whewellite10A_allP_dls.pdb",
+    "altp": ROOT / "DNA_CaOx_growth_whewellite30A_altP_omm.pdb",
+    "gel": ROOT / "DNA_CaOx_gel_first_omm.pdb",
+    "shell15": ROOT / "DNA_CaOx_gel_first_shell15A_omm.pdb",
+    "gel_altp_geom": ROOT / "DNA_CaOx_gel_altP_geom_omm.pdb",
+    "shell_lattice": ROOT / "DNA_CaOx_gel_altP_geom_shell_lattice_omm.pdb",
+    "shell_lattice_seeded": ROOT / "DNA_CaOx_gel_altP_geom_shell_lattice_seeded_omm.pdb",
     "templating_gel": ROOT / "DNA_CaOx_templating_gel_omm.pdb",
     "templating_gel_thick": ROOT / "DNA_CaOx_templating_gel_thick_omm.pdb",
     "templating_gel_10shell": ROOT / "DNA_CaOx_templating_gel_10shell_omm.pdb",
