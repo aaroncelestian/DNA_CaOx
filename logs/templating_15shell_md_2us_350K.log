@@ -23,3 +23,14 @@ COM Ca–Ca targets disabled (gel-first mode)
 Wrote DNA_CaOx_templating_gel_15shell_fire.pdb
 NVT MD: 2000.000 ns (2000000000 steps @ 0.001 ps), T=350.0 K, pos anchor ×0.040
   MD step 1000/2000000000 (0.0%)  E=3.046e+04 kJ/mol
+=== MD launch 2026-08-27T15:08Z ===
+MD plan: 2000.0 ns (2.000 µs) at 350 K, ~400 traj frames (interval 5000000 steps)
+
+>>> /Users/aaroncelestian/Library/Mobile Documents/com~apple~CloudDocs/HTML/DNA_CaOx/.venv/bin/python scripts/fire_openmm_caox.py /Users/aaroncelestian/Library/Mobile Documents/com~apple~CloudDocs/HTML/DNA_CaOx/DNA_CaOx_templating_gel_15shell_omm.pdb --no-com-targets --freeze-beyond 0 --max-move 0.14 --traj /Users/aaroncelestian/Library/Mobile Documents/com~apple~CloudDocs/HTML/DNA_CaOx/viewer/trajectories/DNA_CaOx_templating_gel_15shell_fire.trj.json --md-ns 2000.0 --md-temperature 350.0 --md-traj-interval 5000000 -o /Users/aaroncelestian/Library/Mobile Documents/com~apple~CloudDocs/HTML/DNA_CaOx/DNA_CaOx_templating_gel_15shell_omm.pdb --md-only --steps 0 --skip-openmm
+FIRE start: 409 rigid oxalate, 836 Ca, 4000 water O, frozen bodies=0 (gel≤0=0, seed=0), COM pairs=0, inter-group O-O < 2.0 Å: n=0 min=None
+COM Ca–Ca targets disabled (gel-first mode)
+Wrote DNA_CaOx_templating_gel_15shell_fire.pdb
+NVT MD: 2000.000 ns (2000000000 steps @ 0.001 ps), T=350.0 K, pos anchor ×0.040
+  MD step 1000/2000000000 (0.0%)  E=3.013e+04 kJ/mol
+  MD step 10000/2000000000 (0.0%)  E=3.389e+04 kJ/mol
+  MD step 100000/2000000000 (0.0%)  E=3.349e+04 kJ/mol
